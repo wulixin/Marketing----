@@ -1,0 +1,201 @@
+---
+title: "市场问卷调研数据定量分析标准化流程"
+subtitle: "数据分析/数据挖掘/数据可视化"
+author: "LiXin Wu"
+date: "2019年5月12号"
+output: 
+  html_document:
+  theme: cosmo
+highlight: monochrome 
+toc: true
+toc_float: false
+toc_depth: 4
+number_sections: true
+code_folding: hide
+---
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 研究背景
+   商业活动中的市场调研可以帮助我们很好的了解市场趋势,产品需求,消费者偏好等等,从而帮助决策者做出正确的商业决策.虽然问卷调研已经发展了很长时间,但标准化的数据格式处理,数据挖掘与可视化,规范式的方法论还没有很好的在中国传播,相比国外的社会科学家设计除了很好处理问卷调研数据的程序包,通过软件程序让定量分析与结果呈现更加一目了然.
+   本文主要是借鉴与学习德国汉堡埃彭多夫大学Daniel strengejacke这位教授关于市场调研的研究成果.
+   探索性,描述性,因果性,预测.
+  
+
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+library(sjPlot)
+library(sjmisc)
+library(sjlabelled)
+library(dplyr)
+library(ggeffects)
+data(efc)
+```
+
+
+## 问卷设计
+
+
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+view_df(efc,
+        CSS = list(css.table = "border: 2px solid;",
+                   css.tdata = "border: 1px solid;",
+                   css.arc = "color:blue;"))
+```
+
+
+## 问卷数据
+   数据预览
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+tab_df(efc[1:5, ], sort.column = 2)
+```
+
+   数据描述
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+varlabs <- get_label(efc)
+# recveive first item of COPE-index scale
+start <- which(colnames(efc) == "c82cop1")
+# recveive last item of COPE-index scale
+end <- which(colnames(efc) == "c90cop9")
+# create data frame with COPE-index scale
+mydf <- data.frame(efc[, start:end])
+colnames(mydf) <- varlabs[start:end]
+# Compute PCA on Cope-Index, and perform a
+# item analysis for each extracted factor.
+factor.groups <- sjt.pca(mydf)$factor.index
+sjt.itemanalysis(mydf, factor.groups)
+```
+     这作者更加递进了一个层次是直接把问题按照主成分分类.这样对于缺失数据,方差,偏度,均值等有一个很清楚的了解.
+
+## 描述性分析
+###likert-plot李克特图
+   
+    首先科普利克特量表,可能非marketing专业的童鞋是不了解李克特量表的.利克特量表,是一种现代调查研究中被普遍采用的态度测量表,它的基本形式是给出一组陈述,这些陈述都与某人对某个单独事物的态度有关.要求调查对象表明他是“强烈赞同”、“赞同”、“反对”、“强烈反对”或“未决定”.又称为求和量表.利克特是支持关系理论的创始人,密歇根大学,哥伦比亚大学博士.他的博士论文《态度测量方法》这篇论文成为李克特量表的基础,李克特量表是社会科学家们的一种标准工具.
+    
+   量表可视化
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+mydf <- find_var(efc, pattern = "cop", out = "df")
+# recveive first item of COPE-index scale
+start <- which(colnames(efc) == "c82cop1")
+# recveive first item of COPE-index scale
+end <- which(colnames(efc) == "c90cop9")
+# auto-detection of labels
+sjp.stackfrq(efc[, start:end])
+```
+     
+   
+   量表分析,求和.
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+plot_likert(
+  mydf,
+  grid.range = c(1.2, 1.4),
+  expand.grid = FALSE,
+  values = "sum.outside",
+  show.prc.sign = TRUE
+)
+```
+###Likert plot 升级版
+   主成分分析结合李克特量表
+
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+groups <- sjt.pca(mydf)$factor.index
+plot_likert(mydf, groups = groups, values = "sum.outside")
+```
+
+### 性别VS other
+     
+    性别,年龄,教育程度对于社会统计学来说对于个人行为,价值观,消费观会形成比较深的影响,所以也是分析的切入口.这个地方那位作者在数据可视化上做了很大的集成.
+    
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+efc %>%
+  group_by(e42dep) %>%plot_frq(c161sex) %>%
+  plot_grid()
+```
+    有图看起来女人比起男人更容易产生依赖,小鸟依人也是很好的描述女人.
+    
+###年龄VS other
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+ageGrp <- group_var(efc$e17age)
+ageGrpLab <- group_labels(efc$e17age)
+plot_frq(ageGrp, title = get_label(efc$e17age), axis.labels = ageGrpLab)
+
+sjp.grpfrq(efc$e17age, efc$e16sex, show.values = FALSE)
+```
+
+###教育VS other 
+
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+efc %>% sjplot(e42dep, c172code, fun = "grpfrq")
+```
+
+## 探索性分析
+
+   探索主要探索的潜在因子变量,以及不同问题的摄入度.通过聚类分析,因子分析(探索性因子,验证性因子,结构性因子),主成分分析,ANOVA分析.见过很多投资策略都是说因子分析,但殊不知因子分析最大的难度是原始数据的统计原则,像大事件,热点概念,板块轮动等等因子,这些数据只能手动录入衡量.
+   
+
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+library(GPArotation)
+# recveive first item of COPE-index scale
+start <- which(colnames(efc) == "c82cop1")
+# recveive last item of COPE-index scale
+end <- which(colnames(efc) == "c90cop9")
+# use data frame as argument, let sjp.fa() compute FA
+sjp.pca(efc[, start:end])
+```
+
+
+## 预测性分析
+
+    建立模型,评估与可视化每个变量对于因变量的影响.
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+# fit model
+fit <- glm(
+  tot_sc_e ~ c12hour + e17age + e42dep + neg_c_7,
+  data = efc,
+  family = poisson
+)
+# plot marginal effects for each predictor, each as single plot
+p1 <- ggpredict(fit, "c12hour") %>%
+  plot(show.y.title = FALSE, show.title = FALSE)
+p2 <- ggpredict(fit, "e17age") %>%
+  plot(show.y.title = FALSE, show.title = FALSE)
+p3 <- ggpredict(fit, "e42dep") %>%
+  plot(show.y.title = FALSE, show.title = FALSE)
+p4 <- ggpredict(fit, "neg_c_7") %>%
+  plot(show.y.title = FALSE, show.title = FALSE)
+# plot grid
+plot_grid(list(p1, p2, p3, p4))
+```
+   
+    
+    模型参数的可视化
+    
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+efc <- to_factor(efc, c161sex, e42dep, c172code)
+m <- lm(neg_c_7 ~ pos_v_4 + c12hour + e42dep + c172code, data = efc)
+# grouped coefficients
+plot_model(m, group.terms = c(1, 2, 3, 3, 3, 4, 4))
+```
+
+    模型的评估,共线性,从正态分布.
+    
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+##模型评估,共线性,正态分布
+p <- plot_model(m, type = "diag")
+plot_grid(p)
+```
+  
+   
+    响应变量与预测变量之间的关系
+   
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+# fit sample model
+fit <- lm(tot_sc_e ~ c12hour + e17age + e42dep, data = efc)
+# inspect relationship between predictors and response
+plot_model(fit, type = "slope")
+```
+      
+    这个项目的作者,将问卷调研数据的描述性分析,数据可视化,探索性分析,预测性分析进行了流程的标准化.小编做了一个演示.对于之后问卷的设计,数据类型的设计有了更加清楚的了解.
+      
