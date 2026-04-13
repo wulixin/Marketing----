@@ -1,0 +1,98 @@
+---
+title: "A股每日市场分析报告——投资有风险,入市需谨慎！仅供参考,不构成投资建议!"
+author: "超级分析师LIXIN WU"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+    social: ["tiktok","wechat","qq"]
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(ggplot2)
+library(knitr)
+library(ggcorrplot)
+library(corrplot)
+library(showtext)
+library(plotly)
+
+showtext_auto(enable=TRUE)
+font_add('Songti','Songti.ttc')
+font_families()
+# 加载分析结果
+load("/Users/wulixin/Downloads/analysis_results.RData")
+
+# 获取今天的日期
+today <- Sys.Date()
+```
+
+报告生成时间： `r format(Sys.time(), "%Y-%m-%d %H:%M")`  
+*数据来源：内部系统 | 更新频率：每日*
+
+
+指数表现与板块动向 
+======================================================================
+
+
+## 指数表现 
+
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+plot_index_perf
+```
+
+```{r echo=FALSE,warning=FALSE}
+cat(text_index_perf)
+```
+
+
+
+## 指数估值 
+
+```{r echo=FALSE,warning=FALSE,message=FALSE}
+plot_index_valuation
+```
+
+```{r echo=FALSE,warning=FALSE}
+cat(text_index_valuation)
+```
+
+
+
+
+
+市场风向标
+=====================================
+
+
+## 指数贡献
+
+```{r echo=FALSE,warning=FALSE,message=FALSE,fig.width=11}
+plot_index_contribution
+```
+
+## 描述性分析
+
+```{r echo=FALSE,warning=FALSE}
+cat(text_index_contribution)
+```
+
+## 当日最强板块
+
+```{r echo=FALSE,warning=FALSE,message=FALSE,fig.width=11}
+plot_sector_strong
+```
+
+
+## 当日最弱板块
+
+```{r echo=FALSE,warning=FALSE,message=FALSE,fig.width=11}
+plot_sector_weak
+```
+
+
+
+
+
+
