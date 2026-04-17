@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>每日板块信息分析面板</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background: #f0f2f5; color: #333; }
+
+  .header {
+    background: linear-gradient(135deg, #1a237e 0%, #283593 50%, #1a237e 100%);
+    color: white; padding: 24px 40px; text-align: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  }
+  .header h1 { font-size: 28px; font-weight: 600; letter-spacing: 2px; }
+  .header p { font-size: 14px; opacity: 0.8; margin-top: 6px; }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+  /* KPI 卡片 */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+  .kpi-card {
+    background: white; border-radius: 12px; padding: 20px; text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06); transition: transform 0.2s;
+  }
+  .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+  .kpi-name { font-size: 14px; color: #666; margin-bottom: 8px; }
+  .kpi-value { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+  .kpi-change { font-size: 15px; font-weight: 600; padding: 2px 10px; border-radius: 20px; display: inline-block; }
+  .kpi-ytd { font-size: 12px; color: #999; margin-top: 6px; }
+  .up { color: #e53935; }
+  .down { color: #2e7d32; }
+  .up-bg { background: #ffebee; color: #e53935; }
+  .down-bg { background: #e8f5e9; color: #2e7d32; }
+
+  /* 图表卡片 */
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .chart-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .chart-card {
+    background: white; border-radius: 12px; padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .chart-card h3 { font-size: 16px; color: #1a237e; margin-bottom: 12px; padding-left: 8px; border-left: 3px solid #1a237e; }
+  .chart-box { width: 100%; height: 380px; }
+
+  /* 数据表格 */
+  .table-section { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .table-section h3 { font-size: 16px; color: #1a237e; margin-bottom: 12px; padding-left: 8px; border-left: 3px solid #1a237e; }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table th {
+    background: #283593; color: white; padding: 10px 12px; text-align: center;
+    font-weight: 500; white-space: nowrap;
+  }
+  .data-table td { padding: 8px 12px; text-align: center; border-bottom: 1px solid #eee; }
+  .data-table tr:nth-child(even) { background: #f8f9fa; }
+  .data-table tr:hover { background: #e3f2fd; }
+  .text-up { color: #e53935; font-weight: 600; }
+  .text-down { color: #2e7d32; font-weight: 600; }
+
+  /* 导航标签 */
+  .nav-tabs {
+    display: flex; gap: 0; background: white; border-radius: 12px;
+    margin-bottom: 20px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .nav-tab {
+    flex: 1; padding: 14px; text-align: center; cursor: pointer;
+    font-size: 15px; font-weight: 500; color: #666; transition: all 0.3s;
+    border-bottom: 3px solid transparent;
+  }
+  .nav-tab:hover { background: #e8eaf6; }
+  .nav-tab.active { color: #1a237e; border-bottom: 3px solid #1a237e; background: #e8eaf6; }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* 页脚 */
+  .footer { text-align: center; padding: 20px; color: #999; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📊 每日板块信息分析面板</h1>
+  <p>数据来源：每日板块信息.xlsx ｜ 双击HTML文件即可查看，无需安装任何软件</p>
+</div>
+
+<div class="container">
+  <!-- 导航 -->
+  <div class="nav-tabs">
+    <div class="nav-tab active" onclick="switchTab('overview')">📈 概览总览</div>
+    <div class="nav-tab" onclick="switchTab('performance')">💹 指数表现</div>
+    <div class="nav-tab" onclick="switchTab('valuation')">💰 指数估值</div>
+    <div class="nav-tab" onclick="switchTab('sector')">🏆 板块排行</div>
+    <div class="nav-tab" onclick="switchTab('contrib')">🎯 指数贡献</div>
+  </div>
+
+  <!-- ========== 概览页 ========== -->
+  <div id="tab-overview" class="tab-content active">
+    <div class="kpi-row" id="kpi-row"></div>
+
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3>指数日涨跌幅</h3>
+        <div id="chart-daily-change" class="chart-box"></div>
+      </div>
+      <div class="chart-card">
+        <h3>今年以来涨跌幅</h3>
+        <div id="chart-ytd-change" class="chart-box"></div>
+      </div>
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3>🚀 最强板块 TOP10</h3>
+        <div id="chart-best-overview" class="chart-box"></div>
+      </div>
+      <div class="chart-card">
+        <h3>📉 最弱板块 TOP10</h3>
+        <div id="chart-worst-overview" class="chart-box"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 指数表现页 ========== -->
+  <div id="tab-performance" class="tab-content">
+    <div class="table-section">
+      <h3>指数表现数据</h3>
+      <div id="table-index"></div>
+    </div>
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3>日涨跌幅 vs 今年以来涨跌幅</h3>
+        <div id="chart-compare" class="chart-box"></div>
+      </div>
+      <div class="chart-card">
+        <h3>成交额较昨日变化（亿元）</h3>
+        <div id="chart-volume" class="chart-box"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 指数估值页 ========== -->
+  <div id="tab-valuation" class="tab-content">
+    <div class="table-section">
+      <h3>估值数据</h3>
+      <div id="table-valuation"></div>
+    </div>
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3>市盈率：当前 vs 去年</h3>
+        <div id="chart-pe" class="chart-box"></div>
+      </div>
+      <div class="chart-card">
+        <h3>估值矩阵（市净率 vs 股息率）</h3>
+        <div id="chart-matrix" class="chart-box"></div>
+      </div>
+    </div>
+    <div class="chart-grid">
+      <div class="chart-card" style="grid-column: span 2;">
+        <h3>估值指标热力图</h3>
+        <div id="chart-heatmap" class="chart-box" style="height:300px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 板块排行页 ========== -->
+  <div id="tab-sector" class="tab-content">
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3>🚀 最强板块 TOP10</h3>
+        <div id="chart-best" class="chart-box" style="height:500px;"></div>
+      </div>
+      <div class="chart-card">
+        <h3>📉 最弱板块 TOP10</h3>
+        <div id="chart-worst" class="chart-box" style="height:500px;"></div>
+      </div>
+    </div>
+    <div class="chart-grid">
+      <div class="chart-card" style="grid-column: span 2;">
+        <h3>板块涨跌幅分布</h3>
+        <div id="chart-sector-dist" class="chart-box" style="height:350px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 指数贡献页 ========== -->
+  <div id="tab-contrib" class="tab-content">
+    <div class="kpi-row" id="contrib-kpi" style="grid-template-columns: repeat(3, 1fr);"></div>
+    <div class="table-section">
+      <h3>成分股贡献数据</h3>
+      <div id="table-contrib"></div>
+    </div>
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3>贡献点数排行</h3>
+        <div id="chart-contrib-bar" class="chart-box" style="height:550px;"></div>
+      </div>
+      <div class="chart-card">
+        <h3>涨跌幅 vs 贡献点数</h3>
+        <div id="chart-contrib-scatter" class="chart-box" style="height:550px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">📊 每日板块信息可视化面板 ｜ 数据来源：每日板块信息.xlsx ｜ 双击HTML即可打开</div>
+
+<script>
+const DATA = {"index": [{"指数代码": 1, "指数名称": "上证指数", "收盘": 4055.55, "日涨跌": 28.34, "日涨跌幅（%）": 0.7, "今年以来涨跌": 86.71, "今年以来涨跌幅（%）": 2.18, "成交额较昨日增减（亿元）": -522.86, "成交额较昨日增减（%）": -5.08}, {"指数代码": 10, "指数名称": "上证180", "收盘": 9994.64, "日涨跌": 49.92, "日涨跌幅（%）": 0.5, "今年以来涨跌": -21.22, "今年以来涨跌幅（%）": -0.21, "成交额较昨日增减（亿元）": -371.36, "成交额较昨日增减（%）": -12.57}, {"指数代码": 16, "指数名称": "上证50", "收盘": 2939.76, "日涨跌": 5.55, "日涨跌幅（%）": 0.19, "今年以来涨跌": -91.36, "今年以来涨跌幅（%）": -3.01, "成交额较昨日增减（亿元）": -300.41, "成交额较昨日增减（%）": -20.64}, {"指数代码": 300, "指数名称": "沪深300", "收盘": 4736.61, "日涨跌": 51.36, "日涨跌幅（%）": 1.1, "今年以来涨跌": 106.67, "今年以来涨跌幅（%）": 2.3, "成交额较昨日增减（亿元）": -369.39, "成交额较昨日增减（%）": -6.11}, {"指数代码": 9, "指数名称": "上证380", "收盘": 7068.81, "日涨跌": 75.55, "日涨跌幅（%）": 1.08, "今年以来涨跌": 480.7, "今年以来涨跌幅（%）": 7.3, "成交额较昨日增减（亿元）": -141.43, "成交额较昨日增减（%）": -5.85}, {"指数代码": 15, "指数名称": "红利指数", "收盘": 3237.25, "日涨跌": 6.27, "日涨跌幅（%）": 0.19, "今年以来涨跌": 199.63, "今年以来涨跌幅（%）": 6.57, "成交额较昨日增减（亿元）": -24.15, "成交额较昨日增减（%）": -7.42}, {"指数代码": 922, "指数名称": "中证红利", "收盘": 5734.51, "日涨跌": 13.92, "日涨跌幅（%）": 0.24, "今年以来涨跌": 230.53, "今年以来涨跌幅（%）": 4.19, "成交额较昨日增减（亿元）": -8.75, "成交额较昨日增减（%）": -1.64}, {"指数代码": 905, "指数名称": "中证500", "收盘": 8180.08, "日涨跌": 136.0, "日涨跌幅（%）": 1.69, "今年以来涨跌": 714.51, "今年以来涨跌幅（%）": 9.57, "成交额较昨日增减（亿元）": -269.89, "成交额较昨日增减（%）": -5.91}], "valuation": [{"指数名称": "上证指数", "静态市盈率": 16.54, "滚动市盈率": 15.81, "市静率": 1.49, "股息率": 2.25, "去年静态市盈率": 16.21, "去年滚动市盈率": 15.49, "去年市静率": 1.46}, {"指数名称": "上证180", "静态市盈率": 12.86, "滚动市盈率": 12.25, "市静率": 1.18, "股息率": 3.02, "去年静态市盈率": 13.03, "去年滚动市盈率": 12.41, "去年市静率": 1.2}, {"指数名称": "上证50", "静态市盈率": 12.0, "滚动市盈率": 11.68, "市静率": 1.18, "股息率": 3.37, "去年静态市盈率": 12.33, "去年滚动市盈率": 11.99, "去年市静率": 1.21}, {"指数名称": "沪深300", "静态市盈率": 15.33, "滚动市盈率": 14.45, "市静率": 1.46, "股息率": 2.62, "去年静态市盈率": 15.19, "去年滚动市盈率": 14.31, "去年市静率": 1.45}, {"指数名称": "上证380", "静态市盈率": 25.26, "滚动市盈率": 24.65, "市静率": 2.19, "股息率": 1.71, "去年静态市盈率": 23.69, "去年滚动市盈率": 23.21, "去年市静率": 2.03}, {"指数名称": "红利指数", "静态市盈率": 8.64, "滚动市盈率": 8.74, "市静率": 0.76, "股息率": 4.46, "去年静态市盈率": 8.62, "去年滚动市盈率": 8.72, "去年市静率": 0.75}, {"指数名称": "中证红利", "静态市盈率": 8.55, "滚动市盈率": 8.58, "市静率": 0.76, "股息率": 4.66, "去年静态市盈率": 8.62, "去年滚动市盈率": 8.65, "去年市静率": 0.77}, {"指数名称": "中证500", "静态市盈率": 30.76, "滚动市盈率": 28.99, "市静率": 2.41, "股息率": 1.31, "去年静态市盈率": 28.1, "去年滚动市盈率": 26.6, "去年市静率": 2.21}], "contrib": [{"贡献指数名称": "沪深300指数前十大", "股票名称": "宁德时代", "收盘价": 453.98, "日涨跌幅(%)": 5.33, "贡献点数": 11.13}, {"贡献指数名称": "沪深300指数前十大", "股票名称": "新易盛", "收盘价": 537.5, "日涨跌幅(%)": 8.15, "贡献点数": 7.38}, {"贡献指数名称": "沪深300指数前十大", "股票名称": "中际旭创", "收盘价": 809.61, "日涨跌幅(%)": 3.8, "贡献点数": 6.03}, {"贡献指数名称": "沪深300指数前十大", "股票名称": "天孚通信", "收盘价": 355.57, "日涨跌幅(%)": 7.53, "贡献点数": 2.13}, {"贡献指数名称": "沪深300指数前十大", "股票名称": "立讯精密", "收盘价": 60.45, "日涨跌幅(%)": 2.84, "贡献点数": 1.56}, {"贡献指数名称": "沪深300指数前十大", "股票名称": "兆易创新", "收盘价": 286.73, "日涨跌幅(%)": 4.65, "贡献点数": 1.56}, {"贡献指数名称": "沪深300指数前十大", "股票名称": "蓝思科技", "收盘价": 25.64, "日涨跌幅(%)": -13.35, "贡献点数": -1.44}, {"贡献指数名称": "沪深300指数前十大", "股票名称": "寒武纪", "收盘价": 1307.0, "日涨跌幅(%)": 2.59, "贡献点数": 1.27}, {"贡献指数名称": "沪深300指数前十大", "股票名称": "比亚迪", "收盘价": 105.54, "日涨跌幅(%)": 2.44, "贡献点数": 1.25}, {"贡献指数名称": "沪深300指数前十大", "股票名称": "紫金矿业", "收盘价": 35.3, "日涨跌幅(%)": 1.12, "贡献点数": 1.18}, {"贡献指数名称": "中证500指数前十大", "股票名称": "协创数据", "收盘价": 319.0, "日涨跌幅(%)": 13.65, "贡献点数": 7.36}, {"贡献指数名称": "中证500指数前十大", "股票名称": "大族激光", "收盘价": 86.67, "日涨跌幅(%)": 10.0, "贡献点数": 5.15}, {"贡献指数名称": "中证500指数前十大", "股票名称": "厦门钨业", "收盘价": 61.88, "日涨跌幅(%)": 10.01, "贡献点数": 4.96}, {"贡献指数名称": "中证500指数前十大", "股票名称": "长川科技", "收盘价": 154.09, "日涨跌幅(%)": 9.12, "贡献点数": 4.54}, {"贡献指数名称": "中证500指数前十大", "股票名称": "天华新能", "收盘价": 85.68, "日涨跌幅(%)": 11.37, "贡献点数": 4.04}, {"贡献指数名称": "中证500指数前十大", "股票名称": "中钨高新", "收盘价": 51.9, "日涨跌幅(%)": 10.0, "贡献点数": 3.41}, {"贡献指数名称": "中证500指数前十大", "股票名称": "杰瑞股份", "收盘价": 116.3, "日涨跌幅(%)": 6.23, "贡献点数": 3.32}, {"贡献指数名称": "中证500指数前十大", "股票名称": "信立泰", "收盘价": 60.54, "日涨跌幅(%)": -10.0, "贡献点数": -2.98}, {"贡献指数名称": "中证500指数前十大", "股票名称": "科达利", "收盘价": 205.59, "日涨跌幅(%)": 10.0, "贡献点数": 2.84}, {"贡献指数名称": "中证500指数前十大", "股票名称": "中矿资源", "收盘价": 85.49, "日涨跌幅(%)": 6.11, "贡献点数": 2.82}, {"贡献指数名称": "上证50指数前十大", "股票名称": "寒武纪", "收盘价": 1307.0, "日涨跌幅(%)": 2.59, "贡献点数": 2.26}, {"贡献指数名称": "上证50指数前十大", "股票名称": "紫金矿业", "收盘价": 35.3, "日涨跌幅(%)": 1.12, "贡献点数": 2.08}, {"贡献指数名称": "上证50指数前十大", "股票名称": "澜起科技", "收盘价": 151.0, "日涨跌幅(%)": 2.6, "贡献点数": 1.42}, {"贡献指数名称": "上证50指数前十大", "股票名称": "中信证券", "收盘价": 26.31, "日涨跌幅(%)": 1.15, "贡献点数": 0.95}, {"贡献指数名称": "上证50指数前十大", "股票名称": "贵州茅台", "收盘价": 1462.84, "日涨跌幅(%)": -0.32, "贡献点数": -0.95}, {"贡献指数名称": "上证50指数前十大", "股票名称": "药明康德", "收盘价": 105.66, "日涨跌幅(%)": -1.1, "贡献点数": -0.94}, {"贡献指数名称": "上证50指数前十大", "股票名称": "洛阳钼业", "收盘价": 20.29, "日涨跌幅(%)": 1.6, "贡献点数": 0.91}, {"贡献指数名称": "上证50指数前十大", "股票名称": "中国平安", "收盘价": 58.52, "日涨跌幅(%)": -0.31, "贡献点数": -0.62}, {"贡献指数名称": "上证50指数前十大", "股票名称": "万华化学", "收盘价": 90.1, "日涨跌幅(%)": 1.15, "贡献点数": 0.62}, {"贡献指数名称": "上证50指数前十大", "股票名称": "金山办公", "收盘价": 252.46, "日涨跌幅(%)": 3.33, "贡献点数": 0.61}], "sector": [{"指数名称": "沪市最强表现", "板块名称": "通信技术服务", "日涨跌幅（%）": 7.83}, {"指数名称": "沪市最强表现", "板块名称": "钨钼", "日涨跌幅（%）": 7.12}, {"指数名称": "沪市最强表现", "板块名称": "其他发电设备", "日涨跌幅（%）": 5.67}, {"指数名称": "沪市最强表现", "板块名称": "云计算服务", "日涨跌幅（%）": 4.96}, {"指数名称": "沪市最强表现", "板块名称": "钴镍", "日涨跌幅（%）": 4.66}, {"指数名称": "沪市最弱表现", "板块名称": "制药与生物科技服务", "日涨跌幅（%）": -1.17}, {"指数名称": "沪市最弱表现", "板块名称": "航运", "日涨跌幅（%）": -1.1}, {"指数名称": "沪市最弱表现", "板块名称": "黑色家电", "日涨跌幅（%）": -1.05}, {"指数名称": "沪市最弱表现", "板块名称": "固废处理", "日涨跌幅（%）": -1.03}, {"指数名称": "沪市最弱表现", "板块名称": "医药商业", "日涨跌幅（%）": -1.02}, {"指数名称": "深市市最强表现", "板块名称": "集成电路设计", "日涨跌幅（%）": 16.51}, {"指数名称": "深市市最强表现", "板块名称": "市政环卫", "日涨跌幅（%）": 7.71}, {"指数名称": "深市市最强表现", "板块名称": "摩托车及其他", "日涨跌幅（%）": 7.07}, {"指数名称": "深市市最强表现", "板块名称": "钨钼", "日涨跌幅（%）": 6.98}, {"指数名称": "深市市最强表现", "板块名称": "其他钢铁", "日涨跌幅（%）": 6.76}, {"指数名称": "深市市最弱表现", "板块名称": "工程机械", "日涨跌幅（%）": -2.29}, {"指数名称": "深市市最弱表现", "板块名称": "药品制剂", "日涨跌幅（%）": -1.46}, {"指数名称": "深市市最弱表现", "板块名称": "航天", "日涨跌幅（%）": -1.15}, {"指数名称": "深市市最弱表现", "板块名称": "氨纶及其他化纤", "日涨跌幅（%）": -1.13}, {"指数名称": "深市市最弱表现", "板块名称": "综合性银行", "日涨跌幅（%）": -1.07}, {"指数名称": "港市最强表现", "板块名称": "其他储能设备", "日涨跌幅（%）": 50.46}, {"指数名称": "港市最强表现", "板块名称": "集成电路设计", "日涨跌幅（%）": 14.94}, {"指数名称": "港市最强表现", "板块名称": "其他专用机械", "日涨跌幅（%）": 10.98}, {"指数名称": "港市最强表现", "板块名称": "线缆及其他", "日涨跌幅（%）": 9.62}, {"指数名称": "港市最强表现", "板块名称": "电池部件及材料", "日涨跌幅（%）": 7.45}, {"指数名称": "港市最弱表现", "板块名称": "纺织服装机械", "日涨跌幅（%）": -7.56}, {"指数名称": "港市最弱表现", "板块名称": "LED", "日涨跌幅（%）": -6.4}, {"指数名称": "港市最弱表现", "板块名称": "保险经纪商", "日涨跌幅（%）": -6.05}, {"指数名称": "港市最弱表现", "板块名称": "抵押信贷机构", "日涨跌幅（%）": -4.63}, {"指数名称": "港市最弱表现", "板块名称": "其他汽车零部件", "日涨跌幅（%）": -3.45}], "best": [{"指数名称": "沪市最强表现", "板块名称": "通信技术服务", "日涨跌幅（%）": 7.83}, {"指数名称": "沪市最强表现", "板块名称": "钨钼", "日涨跌幅（%）": 7.12}, {"指数名称": "沪市最强表现", "板块名称": "其他发电设备", "日涨跌幅（%）": 5.67}, {"指数名称": "沪市最强表现", "板块名称": "云计算服务", "日涨跌幅（%）": 4.96}, {"指数名称": "沪市最强表现", "板块名称": "钴镍", "日涨跌幅（%）": 4.66}], "worst": [{"指数名称": "沪市最弱表现", "板块名称": "制药与生物科技服务", "日涨跌幅（%）": -1.17}, {"指数名称": "沪市最弱表现", "板块名称": "航运", "日涨跌幅（%）": -1.1}, {"指数名称": "沪市最弱表现", "板块名称": "黑色家电", "日涨跌幅（%）": -1.05}, {"指数名称": "沪市最弱表现", "板块名称": "固废处理", "日涨跌幅（%）": -1.03}, {"指数名称": "沪市最弱表现", "板块名称": "医药商业", "日涨跌幅（%）": -1.02}]};
+
+// ========== 标签切换 ==========
+function switchTab(tabName) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tabName).classList.add('active');
+  event.target.classList.add('active');
+  // 重新渲染图表（解决隐藏时尺寸问题）
+  setTimeout(() => {
+    Object.values(chartInstances).forEach(c => c.resize());
+  }, 100);
+}
+
+const chartInstances = {};
+function createChart(id, option) {
+  const dom = document.getElementById(id);
+  if (!dom) return;
+  const chart = echarts.init(dom);
+  chart.setOption(option);
+  chartInstances[id] = chart;
+  return chart;
+}
+window.addEventListener('resize', () => {
+  Object.values(chartInstances).forEach(c => c.resize());
+});
+
+// ========== 颜色主题 ==========
+const COLORS = ['#1a237e','#283593','#3949ab','#5c6bc0','#7986cb','#9fa8da','#c5cae9','#e8eaf6'];
+const UP_COLOR = '#e53935';
+const DOWN_COLOR = '#2e7d32';
+
+function fmt(v, digits=2) { return v != null ? Number(v).toFixed(digits) : '-'; }
+function changeClass(v) { return v >= 0 ? 'text-up' : 'text-down'; }
+function changePrefix(v) { return v >= 0 ? '+' : ''; }
+
+// ========== KPI 卡片 ==========
+const kpiNames = ['上证指数','沪深300','中证500','红利指数'];
+const kpiRow = document.getElementById('kpi-row');
+DATA.index.filter(d => kpiNames.includes(d['指数名称'])).forEach(d => {
+  const chg = d['日涨跌幅（%）'];
+  const ytd = d['今年以来涨跌幅（%）'];
+  const isUp = chg >= 0;
+  kpiRow.innerHTML += `
+    <div class="kpi-card">
+      <div class="kpi-name">${d['指数名称']}</div>
+      <div class="kpi-value ${isUp ? 'up' : 'down'}">${fmt(d['收盘'])}</div>
+      <div class="kpi-change ${isUp ? 'up-bg' : 'down-bg'}">${changePrefix(chg)}${fmt(chg)}%</div>
+      <div class="kpi-ytd">今年以来: ${changePrefix(ytd)}${fmt(ytd)}%</div>
+    </div>`;
+});
+
+// ========== 概览 - 日涨跌幅柱状图 ==========
+createChart('chart-daily-change', {
+  tooltip: { trigger: 'axis', formatter: params => `${params[0].name}<br/>${changePrefix(params[0].value)}${params[0].value}%` },
+  xAxis: { type: 'category', data: DATA.index.map(d => d['指数名称']), axisLabel: { rotate: 30 } },
+  yAxis: { type: 'value', name: '%', axisLabel: { formatter: v => v + '%' } },
+  series: [{ type: 'bar', data: DATA.index.map(d => ({
+    value: d['日涨跌幅（%）'],
+    itemStyle: { color: d['日涨跌幅（%）'] >= 0 ? UP_COLOR : DOWN_COLOR }
+  })), barWidth: '40%', label: { show: true, position: 'top', formatter: p => changePrefix(p.value) + fmt(p.value) + '%' } }],
+  grid: { left: 60, right: 30, bottom: 50 }
+});
+
+// ========== 概览 - 今年以来涨跌幅 ==========
+createChart('chart-ytd-change', {
+  tooltip: { trigger: 'axis', formatter: params => `${params[0].name}<br/>${changePrefix(params[0].value)}${params[0].value}%` },
+  xAxis: { type: 'category', data: DATA.index.map(d => d['指数名称']), axisLabel: { rotate: 30 } },
+  yAxis: { type: 'value', name: '%', axisLabel: { formatter: v => v + '%' } },
+  series: [{ type: 'bar', data: DATA.index.map(d => ({
+    value: d['今年以来涨跌幅（%）'],
+    itemStyle: { color: d['今年以来涨跌幅（%）'] >= 0 ? '#ffc107' : DOWN_COLOR }
+  })), barWidth: '40%', label: { show: true, position: 'top', formatter: p => changePrefix(p.value) + fmt(p.value) + '%' } }],
+  grid: { left: 60, right: 30, bottom: 50 }
+});
+
+// ========== 概览 - 最强板块 ==========
+createChart('chart-best-overview', {
+  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+  grid: { left: 120, right: 40, top: 10, bottom: 20 },
+  xAxis: { type: 'value', name: '%', axisLabel: { formatter: v => v + '%' } },
+  yAxis: { type: 'category', data: DATA.best.map(d => d['板块名称']).reverse(), inverse: false },
+  series: [{ type: 'bar', data: DATA.best.map(d => d['日涨跌幅（%）']).reverse(), itemStyle: {
+    color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: '#66bb6a' }, { offset: 1, color: '#2e7d32' }])
+  }, label: { show: true, position: 'right', formatter: p => fmt(p.value) + '%' } }]
+});
+
+// ========== 概览 - 最弱板块 ==========
+createChart('chart-worst-overview', {
+  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+  grid: { left: 120, right: 40, top: 10, bottom: 20 },
+  xAxis: { type: 'value', name: '%', axisLabel: { formatter: v => v + '%' } },
+  yAxis: { type: 'category', data: DATA.worst.map(d => d['板块名称']).reverse(), inverse: false },
+  series: [{ type: 'bar', data: DATA.worst.map(d => d['日涨跌幅（%）']).reverse(), itemStyle: {
+    color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [{ offset: 0, color: '#ef5350' }, { offset: 1, color: '#c62828' }])
+  }, label: { show: true, position: 'left', formatter: p => fmt(p.value) + '%' } }]
+});
+
+// ========== 指数表现 - 数据表 ==========
+const indexCols = ['指数代码','指数名称','收盘','日涨跌','日涨跌幅（%）','今年以来涨跌','今年以来涨跌幅（%）','成交额较昨日增减（亿元）','成交额较昨日增减（%）'];
+let indexHtml = '<table class="data-table"><thead><tr>' + indexCols.map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>';
+DATA.index.forEach(d => {
+  indexHtml += '<tr>' + indexCols.map(c => {
+    const v = d[c];
+    if (c.includes('涨跌幅') || c === '日涨跌' || c === '今年以来涨跌') {
+      return `<td class="${changeClass(v)}">${changePrefix(v)}${fmt(v)}</td>`;
+    }
+    return `<td>${v != null ? (typeof v === 'number' ? fmt(v) : v) : ''}</td>`;
+  }).join('') + '</tr>';
+});
+indexHtml += '</tbody></table>';
+document.getElementById('table-index').innerHTML = indexHtml;
+
+// ========== 指数表现 - 对比图 ==========
+createChart('chart-compare', {
+  tooltip: { trigger: 'axis' },
+  legend: { data: ['日涨跌幅(%)', '今年以来涨跌幅(%)'] },
+  xAxis: { type: 'category', data: DATA.index.map(d => d['指数名称']), axisLabel: { rotate: 30 } },
+  yAxis: { type: 'value', name: '%' },
+  series: [
+    { name: '日涨跌幅(%)', type: 'bar', data: DATA.index.map(d => d['日涨跌幅（%）']), itemStyle: { color: '#3949ab' } },
+    { name: '今年以来涨跌幅(%)', type: 'bar', data: DATA.index.map(d => d['今年以来涨跌幅（%）']), itemStyle: { color: '#ffc107' } }
+  ],
+  grid: { left: 60, right: 30, bottom: 50 }
+});
+
+// ========== 指数表现 - 成交额 ==========
+createChart('chart-volume', {
+  tooltip: { trigger: 'axis', formatter: p => `${p[0].name}<br/>${fmt(p[0].value)} 亿元` },
+  xAxis: { type: 'category', data: DATA.index.map(d => d['指数名称']), axisLabel: { rotate: 30 } },
+  yAxis: { type: 'value', name: '亿元' },
+  series: [{ type: 'bar', data: DATA.index.map(d => ({
+    value: d['成交额较昨日增减（亿元）'],
+    itemStyle: { color: d['成交额较昨日增减（亿元）'] >= 0 ? '#2e7d32' : '#e53935' }
+  })), label: { show: true, position: p => p.value >= 0 ? 'top' : 'bottom', formatter: p => fmt(p.value) } }],
+  grid: { left: 70, right: 30, bottom: 50 }
+});
+
+// ========== 估值 - 数据表 ==========
+const valCols = ['指数名称','静态市盈率','滚动市盈率','市静率','股息率','去年静态市盈率','去年滚动市盈率','去年市静率'];
+let valHtml = '<table class="data-table"><thead><tr>' + valCols.map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>';
+DATA.valuation.forEach(d => {
+  valHtml += '<tr>' + valCols.map(c => `<td>${d[c] != null ? fmt(d[c]) : ''}</td>`).join('') + '</tr>';
+});
+valHtml += '</tbody></table>';
+document.getElementById('table-valuation').innerHTML = valHtml;
+
+// ========== 估值 - 市盈率对比 ==========
+createChart('chart-pe', {
+  tooltip: { trigger: 'axis' },
+  legend: { data: ['当前滚动市盈率', '去年滚动市盈率'] },
+  xAxis: { type: 'category', data: DATA.valuation.map(d => d['指数名称']), axisLabel: { rotate: 30 } },
+  yAxis: { type: 'value', name: 'PE' },
+  series: [
+    { name: '当前滚动市盈率', type: 'bar', data: DATA.valuation.map(d => d['滚动市盈率']), itemStyle: { color: '#3949ab' }, label: { show: true, position: 'top', formatter: p => fmt(p.value) } },
+    { name: '去年滚动市盈率', type: 'bar', data: DATA.valuation.map(d => d['去年滚动市盈率']), itemStyle: { color: '#b0bec5' }, label: { show: true, position: 'top', formatter: p => fmt(p.value) } }
+  ],
+  grid: { left: 60, right: 30, bottom: 50 }
+});
+
+// ========== 估值 - 散点矩阵 ==========
+createChart('chart-matrix', {
+  tooltip: { trigger: 'item', formatter: p => `${p.data[2]}<br/>市净率: ${fmt(p.data[0])}<br/>股息率: ${fmt(p.data[1])}%<br/>市盈率: ${fmt(p.data[3])}` },
+  xAxis: { type: 'value', name: '市净率', nameLocation: 'center', nameGap: 25 },
+  yAxis: { type: 'value', name: '股息率(%)', nameLocation: 'center', nameGap: 35 },
+  series: [{ type: 'scatter', symbolSize: d => Math.max(d[3] * 3, 15), data: DATA.valuation.map(d => [d['市静率'], d['股息率'], d['指数名称'], d['滚动市盈率']]),
+    label: { show: true, formatter: p => p.data[2], position: 'top' },
+    itemStyle: { color: '#3949ab', opacity: 0.7 }
+  }],
+  grid: { left: 70, right: 30, bottom: 40, top: 20 }
+});
+
+// ========== 估值 - 热力图 ==========
+const valNames = DATA.valuation.map(d => d['指数名称']);
+const heatMetrics = ['静态市盈率','滚动市盈率','市静率','股息率'];
+const heatData = [];
+DATA.valuation.forEach((d, i) => {
+  heatMetrics.forEach((m, j) => { heatData.push([i, j, d[m]]); });
+});
+createChart('chart-heatmap', {
+  tooltip: { formatter: p => `${valNames[p.data[0]]} - ${heatMetrics[p.data[1]]}<br/>${fmt(p.data[2])}` },
+  xAxis: { type: 'category', data: valNames },
+  yAxis: { type: 'category', data: heatMetrics },
+  visualMap: { min: 0, max: 35, calculable: true, orient: 'horizontal', left: 'center', bottom: 0, inRange: { color: ['#e8f5e9', '#fff9c4', '#ffebee'] } },
+  series: [{ type: 'heatmap', data: heatData, label: { show: true, formatter: p => fmt(p.data[2]) } }],
+  grid: { left: 90, right: 40, bottom: 60, top: 10 }
+});
+
+// ========== 板块排行 - 最强 ==========
+createChart('chart-best', {
+  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+  grid: { left: 120, right: 50, top: 10, bottom: 20 },
+  xAxis: { type: 'value', name: '%', axisLabel: { formatter: v => v + '%' } },
+  yAxis: { type: 'category', data: DATA.best.map(d => d['板块名称']).reverse() },
+  series: [{ type: 'bar', data: DATA.best.map(d => ({
+    value: d['日涨跌幅（%）'],
+    itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [{ offset: 0, color: '#a5d6a7' }, { offset: 1, color: '#2e7d32' }]) }
+  })).reverse(), label: { show: true, position: 'right', formatter: p => fmt(p.value) + '%', fontWeight: 'bold' } }]
+});
+
+// ========== 板块排行 - 最弱 ==========
+createChart('chart-worst', {
+  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+  grid: { left: 120, right: 50, top: 10, bottom: 20 },
+  xAxis: { type: 'value', name: '%', axisLabel: { formatter: v => v + '%' } },
+  yAxis: { type: 'category', data: DATA.worst.map(d => d['板块名称']).reverse() },
+  series: [{ type: 'bar', data: DATA.worst.map(d => ({
+    value: d['日涨跌幅（%）'],
+    itemStyle: { color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [{ offset: 0, color: '#ef9a9a' }, { offset: 1, color: '#c62828' }]) }
+  })).reverse(), label: { show: true, position: 'left', formatter: p => fmt(p.value) + '%', fontWeight: 'bold' } }]
+});
+
+// ========== 板块涨跌分布 ==========
+const allSectorChanges = DATA.sector.map(d => d['日涨跌幅（%）']);
+createChart('chart-sector-dist', {
+  tooltip: { trigger: 'axis' },
+  xAxis: { type: 'value', name: '涨跌幅(%)' },
+  yAxis: { type: 'value', name: '板块数量' },
+  series: [{ type: 'bar', data: (() => {
+    const bins = {};
+    allSectorChanges.forEach(v => {
+      const key = Math.floor(v);
+      bins[key] = (bins[key] || 0) + 1;
+    });
+    return Object.entries(bins).sort((a,b) => +a[0] - +b[0]).map(([k,v]) => ({
+      value: [k + '.5', v],
+      itemStyle: { color: +k >= 0 ? '#66bb6a' : '#ef5350' }
+    }));
+  })(), barWidth: '80%' }],
+  grid: { left: 50, right: 30, bottom: 40, top: 20 }
+});
+
+// ========== 指数贡献 - KPI ==========
+const positiveSum = DATA.contrib.filter(d => d['贡献点数'] > 0).reduce((s,d) => s + d['贡献点数'], 0);
+const negativeSum = DATA.contrib.filter(d => d['贡献点数'] < 0).reduce((s,d) => s + d['贡献点数'], 0);
+const contribKpi = document.getElementById('contrib-kpi');
+contribKpi.innerHTML = `
+  <div class="kpi-card"><div class="kpi-name">正贡献合计</div><div class="kpi-value up">${fmt(positiveSum)}点</div></div>
+  <div class="kpi-card"><div class="kpi-name">负贡献合计</div><div class="kpi-value down">${fmt(negativeSum)}点</div></div>
+  <div class="kpi-card"><div class="kpi-name">净贡献</div><div class="kpi-value ${positiveSum+negativeSum>=0?'up':'down'}">${changePrefix(positiveSum+negativeSum)}${fmt(positiveSum+negativeSum)}点</div></div>`;
+
+// ========== 指数贡献 - 数据表 ==========
+const contribCols = ['贡献指数名称','股票名称','收盘价','日涨跌幅(%)','贡献点数'];
+let contribHtml = '<table class="data-table"><thead><tr>' + contribCols.map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>';
+DATA.contrib.forEach(d => {
+  contribHtml += '<tr>' + contribCols.map(c => {
+    const v = d[c];
+    if (c === '贡献点数' || c === '日涨跌幅(%)') {
+      return `<td class="${changeClass(v)}">${changePrefix(v)}${fmt(v)}</td>`;
+    }
+    return `<td>${v != null ? (typeof v === 'number' ? fmt(v) : v) : ''}</td>`;
+  }).join('') + '</tr>';
+});
+contribHtml += '</tbody></table>';
+document.getElementById('table-contrib').innerHTML = contribHtml;
+
+// ========== 指数贡献 - 柱状图 ==========
+const contribSorted = [...DATA.contrib].sort((a,b) => a['贡献点数'] - b['贡献点数']);
+createChart('chart-contrib-bar', {
+  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+  grid: { left: 80, right: 50, top: 10, bottom: 20 },
+  xAxis: { type: 'value', name: '贡献点数' },
+  yAxis: { type: 'category', data: contribSorted.map(d => d['股票名称']) },
+  series: [{ type: 'bar', data: contribSorted.map(d => ({
+    value: d['贡献点数'],
+    itemStyle: { color: d['贡献点数'] >= 0 ? '#e53935' : '#2e7d32' }
+  })), label: { show: true, position: p => p.value >= 0 ? 'right' : 'left', formatter: p => fmt(p.value), fontWeight: 'bold' } }]
+});
+
+// ========== 指数贡献 - 散点图 ==========
+createChart('chart-contrib-scatter', {
+  tooltip: { trigger: 'item', formatter: p => `${p.data[2]}<br/>涨跌幅: ${fmt(p.data[0])}%<br/>贡献点数: ${fmt(p.data[1])}` },
+  xAxis: { type: 'value', name: '日涨跌幅(%)' },
+  yAxis: { type: 'value', name: '贡献点数' },
+  series: [{ type: 'scatter', symbolSize: 14, data: DATA.contrib.map(d => [d['日涨跌幅(%)'], d['贡献点数'], d['股票名称']]),
+    label: { show: true, formatter: p => p.data[2], position: 'top', fontSize: 10 },
+    itemStyle: { color: '#3949ab', opacity: 0.7 }
+  }],
+  grid: { left: 60, right: 30, bottom: 40, top: 20 }
+});
+</script>
+</body>
+</html>
