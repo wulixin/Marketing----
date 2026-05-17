@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>极差市场预警系统 v2.0</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-primary: #0a0e27;
+            --bg-secondary: #111638;
+            --bg-card: #161b40;
+            --border-color: #2a3060;
+            --text-primary: #e8eaf6;
+            --text-secondary: #9fa8da;
+            --accent-red: #ff5252;
+            --accent-green: #69f0ae;
+            --accent-blue: #448aff;
+            --accent-amber: #ffd740;
+            --accent-purple: #b388ff;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* 顶部导航 */
+        .header {
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, #1a1f4e 100%);
+            border-bottom: 1px solid var(--border-color);
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .header-title h1 {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #448aff, #b388ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .header-title .logo {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #448aff, #b388ff);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .header-meta {
+            display: flex;
+            gap: 24px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        
+        .header-meta span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        /* 预警概览条 */
+        .alert-bar {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 40px;
+            display: flex;
+            gap: 16px;
+            overflow-x: auto;
+        }
+        
+        .alert-card {
+            flex: 1;
+            min-width: 200px;
+            padding: 14px 18px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .alert-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(68, 138, 255, 0.15);
+        }
+        
+        .alert-card.danger {
+            border-left: 3px solid var(--accent-red);
+        }
+        
+        .alert-card.warning {
+            border-left: 3px solid var(--accent-amber);
+        }
+        
+        .alert-card.safe {
+            border-left: 3px solid var(--accent-green);
+        }
+        
+        .alert-card.opportunity {
+            border-left: 3px solid var(--accent-blue);
+        }
+        
+        .alert-card .pair-name {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        
+        .alert-card .alert-level {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        
+        .alert-level.extreme-high {
+            background: rgba(255, 82, 82, 0.15);
+            color: var(--accent-red);
+        }
+        
+        .alert-level.extreme-low {
+            background: rgba(68, 138, 255, 0.15);
+            color: var(--accent-blue);
+        }
+        
+        .alert-level.normal {
+            background: rgba(105, 240, 174, 0.15);
+            color: var(--accent-green);
+        }
+        
+        .alert-card .spread-value {
+            font-size: 20px;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+        
+        /* 主内容区 */
+        .main-content {
+            padding: 24px 40px;
+        }
+        
+        /* Tab导航 */
+        .tab-nav {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 24px;
+            background: var(--bg-secondary);
+            padding: 4px;
+            border-radius: 12px;
+            width: fit-content;
+        }
+        
+        .tab-btn {
+            padding: 10px 24px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .tab-btn.active {
+            background: linear-gradient(135deg, #448aff, #6c5ce7);
+            color: white;
+        }
+        
+        .tab-btn:hover:not(.active) {
+            background: rgba(68, 138, 255, 0.1);
+        }
+        
+        /* 图表容器 */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .chart-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 20px;
+            position: relative;
+        }
+        
+        .chart-box.full-width {
+            grid-column: 1 / -1;
+        }
+        
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .chart-subtitle {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+        
+        .chart-container {
+            width: 100%;
+            height: 360px;
+        }
+        
+        .chart-container.tall {
+            height: 420px;
+        }
+        
+        /* 统计表格 */
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .stats-table th {
+            text-align: left;
+            padding: 12px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .stats-table td {
+            padding: 12px 16px;
+            font-size: 14px;
+            border-bottom: 1px solid rgba(42, 48, 96, 0.5);
+        }
+        
+        .stats-table tr:hover td {
+            background: rgba(68, 138, 255, 0.05);
+        }
+        
+        /* 热力条 */
+        .heat-bar {
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(90deg, var(--accent-green), var(--accent-amber), var(--accent-red));
+            border-radius: 3px;
+            position: relative;
+            margin-top: 4px;
+        }
+        
+        .heat-marker {
+            width: 12px;
+            height: 12px;
+            background: white;
+            border: 2px solid var(--bg-primary);
+            border-radius: 50%;
+            position: absolute;
+            top: -3px;
+            transform: translateX(-50%);
+            box-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
+        }
+        
+        /* 底部信息 */
+        .footer {
+            padding: 20px 40px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+        
+        /* 响应式 */
+        @media (max-width: 1200px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .header { padding: 16px 20px; }
+            .main-content { padding: 16px 20px; }
+            .alert-bar { padding: 12px 20px; }
+            .charts-grid { gap: 16px; }
+        }
+        
+        /* 加载动画 */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 400px;
+        }
+        
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 信号灯 */
+        .signal-light {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        
+        .signal-light.red { background: var(--accent-red); box-shadow: 0 0 8px var(--accent-red); }
+        .signal-light.green { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
+        .signal-light.gray { background: #666; }
+        
+        /* 公式框 */
+        .formula-box {
+            background: rgba(68, 138, 255, 0.08);
+            border: 1px solid rgba(68, 138, 255, 0.2);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 16px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        
+        .formula-box .highlight {
+            color: var(--accent-amber);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <div class="header">
+        <div class="header-title">
+            <div class="logo">R</div>
+            <div>
+                <h1>极差市场预警系统</h1>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                    Range Spread Market Early Warning System
+                </div>
+            </div>
+        </div>
+        <div class="header-meta">
+            <span><div class="pulse-dot"></div> 实时监控中</span>
+            <span>📅 数据区间: 2024-01 ~ 2026-05</span>
+            <span>🔄 滚动窗口: 60日</span>
+        </div>
+    </div>
+    
+    <!-- 预警概览条 -->
+    <div class="alert-bar" id="alertBar">
+        <!-- 动态生成 -->
+    </div>
+    
+    <!-- Tab导航 -->
+    <div class="main-content">
+        <div class="tab-nav">
+            <button class="tab-btn active" data-tab="spread">极差监测</button>
+            <button class="tab-btn" data-tab="pe">PE极差</button>
+            <button class="tab-btn" data-tab="composite">综合极差</button>
+            <button class="tab-btn" data-tab="price">价格走势</button>
+            <button class="tab-btn" data-tab="zscore">Z-Score对比</button>
+            <button class="tab-btn" data-tab="stats">统计分析</button>
+            <button class="tab-btn" data-tab="theory">算法原理</button>
+        </div>
+        
+        <!-- 极差监测面板 -->
+        <div id="tab-spread" class="tab-content">
+            <div class="charts-grid">
+                <div class="chart-box full-width">
+                    <div class="chart-title">📊 5组极差综合监测</div>
+                    <div class="chart-subtitle">极差 = Z(高位股累计收益率) - Z(低位股累计收益率) | 布林带(2σ)预警</div>
+                    <div class="chart-container tall" id="chart-combined"></div>
+                </div>
+            </div>
+            <div class="charts-grid">
+                <div class="chart-box">
+                    <div class="chart-title"><span class="signal-light" id="light-0"></span>寒武纪 vs 贵州茅台</div>
+                    <div class="chart-subtitle">AI芯片 vs 消费龙头 | 极差布林带监测</div>
+                    <div class="chart-container" id="chart-pair-0"></div>
+                </div>
+                <div class="chart-box">
+                    <div class="chart-title"><span class="signal-light" id="light-1"></span>海光信息 vs 上海机场</div>
+                    <div class="chart-subtitle">国产CPU vs 出行消费 | 极差布林带监测</div>
+                    <div class="chart-container" id="chart-pair-1"></div>
+                </div>
+                <div class="chart-box">
+                    <div class="chart-title"><span class="signal-light" id="light-2"></span>中际旭创 vs 招商银行</div>
+                    <div class="chart-subtitle">CPO光模块 vs 银行蓝筹 | 极差布林带监测</div>
+                    <div class="chart-container" id="chart-pair-2"></div>
+                </div>
+                <div class="chart-box">
+                    <div class="chart-title"><span class="signal-light" id="light-3"></span>工业富联 vs 海天味业</div>
+                    <div class="chart-subtitle">AI服务器 vs 调味品消费 | 极差布林带监测</div>
+                    <div class="chart-container" id="chart-pair-3"></div>
+                </div>
+                <div class="chart-box">
+                    <div class="chart-title"><span class="signal-light" id="light-4"></span>宁德时代 vs 中信证券</div>
+                    <div class="chart-subtitle">动力电池 vs 券商龙头 | 极差布林带监测</div>
+                    <div class="chart-container" id="chart-pair-4"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 价格走势面板 -->
+        <div id="tab-price" class="tab-content" style="display:none;">
+            <div class="charts-grid">
+                <div class="chart-box full-width">
+                    <div class="chart-title">📈 配对价格走势对比</div>
+                    <div class="chart-subtitle">高位股(红) vs 低位股(绿) 累计收益率对比</div>
+                    <div class="chart-container tall" id="chart-price-combined"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Z-Score面板 -->
+        <div id="tab-zscore" class="tab-content" style="display:none;">
+            <div class="charts-grid">
+                <div class="chart-box full-width">
+                    <div class="chart-title">🎯 Z-Score标准化走势</div>
+                    <div class="chart-subtitle">高位股(红)与低位股(绿)的滚动60日Z-Score对比</div>
+                    <div class="chart-container tall" id="chart-zscore-combined"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- PE极差面板 -->
+        <div id="tab-pe" class="tab-content" style="display:none;">
+            <div class="charts-grid">
+                <div class="chart-box full-width">
+                    <div class="chart-title">📊 PE极差（动态市盈率TTM）综合监测</div>
+                    <div class="chart-subtitle">PE Spread = Z(高位股PE_TTM) - Z(低位股PE_TTM) | 估值分化程度</div>
+                    <div class="chart-container tall" id="chart-pe-combined"></div>
+                </div>
+            </div>
+            <div class="charts-grid">
+                <div class="chart-box">
+                    <div class="chart-title">寒武纪 vs 贵州茅台 PE极差</div>
+                    <div class="chart-subtitle">半导体PE vs 白酒PE</div>
+                    <div class="chart-container" id="chart-pe-pair-0"></div>
+                </div>
+                <div class="chart-box">
+                    <div class="chart-title">海光信息 vs 上海机场 PE极差</div>
+                    <div class="chart-subtitle">半导体PE vs 航运PE</div>
+                    <div class="chart-container" id="chart-pe-pair-1"></div>
+                </div>
+                <div class="chart-box">
+                    <div class="chart-title">中际旭创 vs 招商银行 PE极差</div>
+                    <div class="chart-subtitle">通信设备PE vs 银行PE</div>
+                    <div class="chart-container" id="chart-pe-pair-2"></div>
+                </div>
+                <div class="chart-box">
+                    <div class="chart-title">工业富联 vs 海天味业 PE极差</div>
+                    <div class="chart-subtitle">电子组件PE vs 食品PE</div>
+                    <div class="chart-container" id="chart-pe-pair-3"></div>
+                </div>
+                <div class="chart-box">
+                    <div class="chart-title">宁德时代 vs 中信证券 PE极差</div>
+                    <div class="chart-subtitle">锂电PE vs 券商PE</div>
+                    <div class="chart-container" id="chart-pe-pair-4"></div>
+                </div>
+                <div class="chart-box">
+                    <div class="chart-title">🏭 行业PE比值对比 (中证行业分类)</div>
+                    <div class="chart-subtitle">基于csi20260515.xls数据 — 高位行业PE/低位行业PE</div>
+                    <div class="chart-container" id="chart-industry-pe"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 综合极差面板 -->
+        <div id="tab-composite" class="tab-content" style="display:none;">
+            <div class="charts-grid">
+                <div class="chart-box full-width">
+                    <div class="chart-title">🔮 综合极差 = 0.6×价格极差 + 0.4×PE极差</div>
+                    <div class="chart-subtitle">融合价格走势分化与估值分化的综合监测指标</div>
+                    <div class="chart-container tall" id="chart-composite-combined"></div>
+                </div>
+            </div>
+            <div class="chart-box" style="margin-top:20px;">
+                <div class="chart-title">📋 价格极差 vs PE极差 vs 综合极差 对比</div>
+                <div class="chart-subtitle">三种极差指标的当前值与信号对比</div>
+                <div style="overflow-x:auto; margin-top:16px;">
+                    <table class="stats-table" id="compare-table">
+                        <thead>
+                            <tr>
+                                <th>配对</th>
+                                <th>价格极差</th>
+                                <th>价格信号</th>
+                                <th>PE极差</th>
+                                <th>PE信号</th>
+                                <th>综合极差</th>
+                                <th>综合信号</th>
+                                <th>PE比值</th>
+                                <th>行业PE比</th>
+                                <th>PE加速度</th>
+                                <th>最终判定</th>
+                            </tr>
+                        </thead>
+                        <tbody id="compare-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 统计分析面板 -->
+        <div id="tab-stats" class="tab-content" style="display:none;">
+            <div class="chart-box">
+                <div class="chart-title">📋 极差统计特征</div>
+                <div class="chart-subtitle">各组配对的均值、标准差、偏度、半衰期等核心指标</div>
+                <div style="overflow-x: auto; margin-top: 16px;">
+                    <table class="stats-table" id="stats-table">
+                        <thead>
+                            <tr>
+                                <th>配对</th>
+                                <th>均值</th>
+                                <th>标准差</th>
+                                <th>偏度</th>
+                                <th>峰度</th>
+                                <th>最大值</th>
+                                <th>最小值</th>
+                                <th>半衰期(天)</th>
+                                <th>穿越均值次数</th>
+                                <th>当前百分位</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stats-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="charts-grid" style="margin-top: 20px;">
+                <div class="chart-box">
+                    <div class="chart-title">🌡️ 极差百分位热力图</div>
+                    <div class="chart-subtitle">当前极差在历史区间中的位置</div>
+                    <div class="chart-container" id="chart-heatmap"></div>
+                </div>
+                <div class="chart-box">
+                    <div class="chart-title">⏱️ 均值回归半衰期</div>
+                    <div class="chart-subtitle">偏离后回归均值的平均速度(天)</div>
+                    <div class="chart-container" id="chart-halflife"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 算法原理面板 -->
+        <div id="tab-theory" class="tab-content" style="display:none;">
+            <div class="chart-box">
+                <div class="chart-title">🧮 极差模型算法原理</div>
+                <div class="chart-subtitle">Range Spread Model — 核心公式与逻辑</div>
+                
+                <div class="formula-box">
+                    <strong>1. 累计收益率</strong><br>
+                    CR<sub>i</sub>(t) = P<sub>i</sub>(t) / P<sub>i</sub>(0)<br><br>
+                    
+                    <strong>2. 滚动Z-Score标准化</strong><br>
+                    Z<sub>i</sub>(t) = [CR<sub>i</sub>(t) - μ<sub>i</sub>(t)] / σ<sub>i</sub>(t)<br>
+                    其中 μ<sub>i</sub>(t) = mean(CR<sub>i</sub>(t-W:t)), σ<sub>i</sub>(t) = std(CR<sub>i</sub>(t-W:t)), W=60<br><br>
+                    
+                    <strong>3. <span class="highlight">极差 (Range Spread)</span></strong><br>
+                    RS(t) = Z<sub>high</sub>(t) - Z<sub>low</sub>(t)<br><br>
+                    
+                    <strong>4. 布林带预警</strong><br>
+                    Upper(t) = μ<sub>RS</sub>(t) + 2·σ<sub>RS</sub>(t)<br>
+                    Lower(t) = μ<sub>RS</sub>(t) - 2·σ<sub>RS</sub>(t)<br><br>
+                    
+                    <strong>5. 交易信号</strong><br>
+                    Signal = +1 当 RS(t) > Upper(t) → <span class="highlight">高位股过热，低位股超跌</span><br>
+                    Signal = -1 当 RS(t) < Lower(t) → <span class="highlight">低位股走强，高位股回调</span>
+                </div>
+                
+                <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 16px;">📐 均值回归半衰期</h3>
+                <div class="formula-box">
+                    对极差偏差序列 ε(t) = RS(t) - μ<sub>RS</sub>(t) 拟合AR(1)模型：<br>
+                    ε(t) = φ·ε(t-1) + ξ(t)<br><br>
+                    半衰期: t<sub>1/2</sub> = -ln(2) / ln(φ)<br><br>
+                    <span class="highlight">含义：极差偏离均值后，回归至一半所需的天数。</span><br>
+                    半衰期越短，均值回归速度越快，配对交易机会越多。
+                </div>
+                
+                <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 16px;">🔬 极差的扩展应用</h3>
+                <div style="line-height: 2; font-size: 14px; color: var(--text-secondary);">
+                    <p>1. <strong style="color: var(--accent-blue);">配对交易 (Pairs Trading)</strong> — 当极差偏离阈值时，做空高位股、做多低位股，等待均值回归获利</p>
+                    <p>2. <strong style="color: var(--accent-amber);">行业轮动监测</strong> — 追踪科技/消费、成长/价值板块间的极差变化，识别风格切换节点</p>
+                    <p>3. <strong style="color: var(--accent-green);">风险预警系统</strong> — 极差持续扩大往往预示市场结构性风险积聚</p>
+                    <p>4. <strong style="color: var(--accent-purple);">情绪指标构建</strong> — 极差反映市场极端分化的程度，可作为贪婪/恐惧指标</p>
+                    <p>5. <strong style="color: var(--accent-red);">因子暴露分析</strong> — 解构极差中各风险因子的贡献度</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 底部 -->
+    <div class="footer">
+        <span>极差市场预警系统 v1.0 | Python + R 双版本实现</span>
+        <span>数据来源: 模拟数据 | 仅供参考，不构成投资建议</span>
+    </div>
+    
+    <script>
+    // ==========================================================================
+    // 数据加载与全局变量
+    // ==========================================================================
+    let DASHBOARD_DATA = null;
+    
+    const PAIR_COLORS = [
+        { high: '#ff5252', low: '#69f0ae', spread: '#448aff' },
+        { high: '#ff6e40', low: '#64ffda', spread: '#7c4dff' },
+        { high: '#ffab40', low: '#80cbc4', spread: '#e040fb' },
+        { high: '#ff8a65', low: '#a5d6a7', spread: '#536dfe' },
+        { high: '#ef5350', low: '#81c784', spread: '#ab47bc' }
+    ];
+    
+    // ==========================================================================
+    // 初始化
+    // ==========================================================================
+    async function init() {
+        try {
+            const resp = await fetch('output/dashboard_data.json');
+            DASHBOARD_DATA = await resp.json();
+        } catch (e) {
+            // 内嵌备用：如果无法加载JSON，使用内嵌数据
+            console.warn('无法加载JSON数据，使用内嵌数据');
+            DASHBOARD_DATA = generateFallbackData();
+        }
+        
+        renderAlertBar();
+        renderCombinedSpread();
+        renderPairCharts();
+        renderPriceChart();
+        renderZScoreChart();
+        renderPECombined();
+        renderPEPairCharts();
+        renderIndustryPE();
+        renderCompositeCombined();
+        renderCompareTable();
+        renderStatsTable();
+        renderHeatmap();
+        renderHalflifeChart();
+        setupTabs();
+        updateSignalLights();
+    }
+    
+    // ==========================================================================
+    // 预警概览条
+    // ==========================================================================
+    function renderAlertBar() {
+        const bar = document.getElementById('alertBar');
+        const alerts = DASHBOARD_DATA.alerts;
+        
+        bar.innerHTML = alerts.map((a, i) => {
+            let cardClass = 'safe';
+            if (a.alert_level === '极端偏高') cardClass = 'danger';
+            else if (a.alert_level === '极端偏低') cardClass = 'opportunity';
+            else if (Math.abs(a.deviation_pct) > 30) cardClass = 'warning';
+            
+            let levelClass = 'normal';
+            if (a.alert_level === '极端偏高') levelClass = 'extreme-high';
+            else if (a.alert_level === '极端偏低') levelClass = 'extreme-low';
+            
+            return `
+                <div class="alert-card ${cardClass}" onclick="focusPair(${i})">
+                    <div class="pair-name">${a.pair}</div>
+                    <span class="alert-level ${levelClass}">${a.alert_level}</span>
+                    <div class="spread-value" style="color: ${a.price_signal === 1 ? 'var(--accent-red)' : a.price_signal === -1 ? 'var(--accent-blue)' : 'var(--text-primary)'}">
+                        ${a.current_spread.toFixed(2)}
+                    </div>
+                    <div style="font-size:11px; color:var(--text-secondary); margin-top:2px;">
+                        PE比: ${a.pe_ratio ? a.pe_ratio : 'N/A'} ${a.industry_pe_ratio ? '| 行业PE比: ' + a.industry_pe_ratio : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    function focusPair(index) {
+        // 切换到极差监测tab并高亮对应图表
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector('[data-tab="spread"]').classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+        document.getElementById('tab-spread').style.display = 'block';
+        
+        const chartEl = document.getElementById(`chart-pair-${index}`);
+        if (chartEl) {
+            chartEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+    
+    // ==========================================================================
+    // 信号灯更新
+    // ==========================================================================
+    function updateSignalLights() {
+        DASHBOARD_DATA.alerts.forEach((a, i) => {
+            const light = document.getElementById(`light-${i}`);
+            if (light) {
+                light.className = 'signal-light ' + (a.signal === 1 ? 'red' : a.signal === -1 ? 'green' : 'gray');
+            }
+        });
+    }
+    
+    // ==========================================================================
+    // 综合极差图
+    // ==========================================================================
+    function renderCombinedSpread() {
+        const chart = echarts.init(document.getElementById('chart-combined'), 'dark');
+        const dates = DASHBOARD_DATA.dates;
+        
+        const series = DASHBOARD_DATA.pairs.map((p, i) => ({
+            name: p.name,
+            type: 'line',
+            data: p.spread,
+            smooth: true,
+            symbol: 'none',
+            lineStyle: { width: 2, color: PAIR_COLORS[i].spread },
+            itemStyle: { color: PAIR_COLORS[i].spread }
+        }));
+        
+        chart.setOption({
+            backgroundColor: 'transparent',
+            tooltip: {
+                trigger: 'axis',
+                backgroundColor: 'rgba(22, 27, 64, 0.95)',
+                borderColor: '#2a3060',
+                textStyle: { color: '#e8eaf6', fontSize: 12 }
+            },
+            legend: {
+                data: DASHBOARD_DATA.pairs.map(p => p.name),
+                textStyle: { color: '#9fa8da', fontSize: 12 },
+                top: 0
+            },
+            grid: { left: 60, right: 30, top: 50, bottom: 30 },
+            xAxis: {
+                type: 'category',
+                data: dates,
+                axisLine: { lineStyle: { color: '#2a3060' } },
+                axisLabel: { color: '#9fa8da', fontSize: 10, rotate: 30 },
+                splitLine: { show: false }
+            },
+            yAxis: {
+                type: 'value',
+                name: '极差值',
+                nameTextStyle: { color: '#9fa8da' },
+                axisLine: { lineStyle: { color: '#2a3060' } },
+                axisLabel: { color: '#9fa8da', fontSize: 10 },
+                splitLine: { lineStyle: { color: 'rgba(42, 48, 96, 0.5)' } }
+            },
+            series: series,
+            dataZoom: [{ type: 'inside' }, { type: 'slider', height: 20, bottom: 5 }]
+        });
+        
+        window.addEventListener('resize', () => chart.resize());
+    }
+    
+    // ==========================================================================
+    // 单配对极差图
+    // ==========================================================================
+    function renderPairCharts() {
+        DASHBOARD_DATA.pairs.forEach((p, i) => {
+            const el = document.getElementById(`chart-pair-${i}`);
+            if (!el) return;
+            const chart = echarts.init(el, 'dark');
+            const dates = DASHBOARD_DATA.dates;
+            
+            chart.setOption({
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'axis',
+                    backgroundColor: 'rgba(22, 27, 64, 0.95)',
+                    borderColor: '#2a3060',
+                    textStyle: { color: '#e8eaf6', fontSize: 12 }
+                },
+                legend: {
+                    data: ['极差', '均值', '上轨', '下轨'],
+                    textStyle: { color: '#9fa8da', fontSize: 11 },
+                    top: 0,
+                    right: 10
+                },
+                grid: { left: 50, right: 20, top: 40, bottom: 30 },
+                xAxis: {
+                    type: 'category',
+                    data: dates,
+                    axisLine: { lineStyle: { color: '#2a3060' } },
+                    axisLabel: { color: '#9fa8da', fontSize: 9, rotate: 45 },
+                    splitLine: { show: false }
+                },
+                yAxis: {
+                    type: 'value',
+                    axisLine: { lineStyle: { color: '#2a3060' } },
+                    axisLabel: { color: '#9fa8da', fontSize: 10 },
+                    splitLine: { lineStyle: { color: 'rgba(42, 48, 96, 0.4)' } }
+                },
+                series: [
+                    {
+                        name: '上轨',
+                        type: 'line',
+                        data: p.upper_band,
+                        symbol: 'none',
+                        lineStyle: { width: 1, type: 'dashed', color: 'rgba(255, 82, 82, 0.5)' },
+                        itemStyle: { color: 'rgba(255, 82, 82, 0.5)' }
+                    },
+                    {
+                        name: '下轨',
+                        type: 'line',
+                        data: p.lower_band,
+                        symbol: 'none',
+                        lineStyle: { width: 1, type: 'dashed', color: 'rgba(105, 240, 174, 0.5)' },
+                        itemStyle: { color: 'rgba(105, 240, 174, 0.5)' },
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                { offset: 0, color: 'rgba(255, 82, 82, 0.05)' },
+                                { offset: 0.5, color: 'rgba(68, 138, 255, 0.08)' },
+                                { offset: 1, color: 'rgba(105, 240, 174, 0.05)' }
+                            ])
+                        }
+                    },
+                    {
+                        name: '均值',
+                        type: 'line',
+                        data: p.spread_mean,
+                        symbol: 'none',
+                        lineStyle: { width: 1.5, color: '#ffd740' },
+                        itemStyle: { color: '#ffd740' }
+                    },
+                    {
+                        name: '极差',
+                        type: 'line',
+                        data: p.spread,
+                        symbol: 'none',
+                        smooth: true,
+                        lineStyle: { width: 2.5, color: PAIR_COLORS[i].spread },
+                        itemStyle: { color: PAIR_COLORS[i].spread },
+                        markArea: {
+                            silent: true,
+                            data: detectSignalZones(p.signal, p.spread)
+                        }
+                    }
+                ],
+                dataZoom: [{ type: 'inside' }]
+            });
+            
+            window.addEventListener('resize', () => chart.resize());
+        });
+    }
+    
+    // 检测预警区域
+    function detectSignalZones(signals, spreads) {
+        const zones = [];
+        let inZone = false;
+        let startIdx = 0;
+        
+        for (let i = 0; i < signals.length; i++) {
+            if (signals[i] !== 0 && !inZone) {
+                inZone = true;
+                startIdx = i;
+            } else if (signals[i] === 0 && inZone) {
+                inZone = false;
+                zones.push([{
+                    xAxis: startIdx,
+                    itemStyle: { color: signals[startIdx] === 1 ? 'rgba(255, 82, 82, 0.08)' : 'rgba(68, 138, 255, 0.08)' }
+                }, {
+                    xAxis: i
+                }]);
+            }
+        }
+        
+        return zones.slice(-5); // 只显示最近5个区域
+    }
+    
+    // ==========================================================================
+    // 价格走势图
+    // ==========================================================================
+    function renderPriceChart() {
+        const el = document.getElementById('chart-price-combined');
+        if (!el) return;
+        const chart = echarts.init(el, 'dark');
+        const dates = DASHBOARD_DATA.dates;
+        
+        const pairNames = [
+            ['寒武纪_688256', '贵州茅台_600519'],
+            ['海光信息_688041', '上海机场_600009'],
+            ['中际旭创_300308', '招商银行_600036'],
+            ['工业富联_601138', '海天味业_603288'],
+            ['宁德时代_300750', '中信证券_600030']
+        ];
+        
+        const series = [];
+        pairNames.forEach((pair, i) => {
+            const highPrices = DASHBOARD_DATA[`price_${pair[0]}`];
+            const lowPrices = DASHBOARD_DATA[`price_${pair[1]}`];
+            
+            if (highPrices) {
+                const cumRet = highPrices.map((p, idx) => idx === 0 ? 100 : (p / highPrices[0] * 100));
+                series.push({
+                    name: pair[0].split('_')[0] + '(高)',
+                    type: 'line',
+                    data: cumRet,
+                    symbol: 'none',
+                    smooth: true,
+                    lineStyle: { width: 2, color: PAIR_COLORS[i].high },
+                    itemStyle: { color: PAIR_COLORS[i].high },
+                    yAxisIndex: 0
+                });
+            }
+            if (lowPrices) {
+                const cumRet = lowPrices.map((p, idx) => idx === 0 ? 100 : (p / lowPrices[0] * 100));
+                series.push({
+                    name: pair[1].split('_')[0] + '(低)',
+                    type: 'line',
+                    data: cumRet,
+                    symbol: 'none',
+                    smooth: true,
+                    lineStyle: { width: 2, color: PAIR_COLORS[i].low },
+                    itemStyle: { color: PAIR_COLORS[i].low },
+                    yAxisIndex: 0
+                });
+            }
+        });
+        
+        chart.setOption({
+            backgroundColor: 'transparent',
+            tooltip: {
+                trigger: 'axis',
+                backgroundColor: 'rgba(22, 27, 64, 0.95)',
+                borderColor: '#2a3060',
+                textStyle: { color: '#e8eaf6', fontSize: 12 }
+            },
+            legend: {
+                textStyle: { color: '#9fa8da', fontSize: 11 },
+                top: 0,
+                type: 'scroll'
+            },
+            grid: { left: 60, right: 30, top: 50, bottom: 30 },
+            xAxis: {
+                type: 'category',
+                data: dates,
+                axisLine: { lineStyle: { color: '#2a3060' } },
+                axisLabel: { color: '#9fa8da', fontSize: 10, rotate: 30 },
+                splitLine: { show: false }
+            },
+            yAxis: {
+                type: 'value',
+                name: '累计收益率(%)',
+                nameTextStyle: { color: '#9fa8da' },
+                axisLine: { lineStyle: { color: '#2a3060' } },
+                axisLabel: { color: '#9fa8da', fontSize: 10 },
+                splitLine: { lineStyle: { color: 'rgba(42, 48, 96, 0.5)' } }
+            },
+            series: series,
+            dataZoom: [{ type: 'inside' }, { type: 'slider', height: 20, bottom: 5 }]
+        });
+        
+        window.addEventListener('resize', () => chart.resize());
+    }
+    
+    // ==========================================================================
+    // Z-Score对比图
+    // ==========================================================================
+    function renderZScoreChart() {
+        const el = document.getElementById('chart-zscore-combined');
+        if (!el) return;
+        const chart = echarts.init(el, 'dark');
+        const dates = DASHBOARD_DATA.dates;
+        
+        const series = [];
+        DASHBOARD_DATA.pairs.forEach((p, i) => {
+            series.push({
+                name: p.name.split(' vs ')[0] + ' Z',
+                type: 'line',
+                data: p.z_high,
+                symbol: 'none',
+                smooth: true,
+                lineStyle: { width: 2, color: PAIR_COLORS[i].high },
+                itemStyle: { color: PAIR_COLORS[i].high }
+            });
+            series.push({
+                name: p.name.split(' vs ')[1] + ' Z',
+                type: 'line',
+                data: p.z_low,
+                symbol: 'none',
+                smooth: true,
+                lineStyle: { width: 2, type: 'dashed', color: PAIR_COLORS[i].low },
+                itemStyle: { color: PAIR_COLORS[i].low }
+            });
+        });
+        
+        chart.setOption({
+            backgroundColor: 'transparent',
+            tooltip: {
+                trigger: 'axis',
+                backgroundColor: 'rgba(22, 27, 64, 0.95)',
+                borderColor: '#2a3060',
+                textStyle: { color: '#e8eaf6', fontSize: 12 }
+            },
+            legend: {
+                textStyle: { color: '#9fa8da', fontSize: 10 },
+                top: 0,
+                type: 'scroll'
+            },
+            grid: { left: 60, right: 30, top: 50, bottom: 30 },
+            xAxis: {
+                type: 'category',
+                data: dates,
+                axisLine: { lineStyle: { color: '#2a3060' } },
+                axisLabel: { color: '#9fa8da', fontSize: 10, rotate: 30 },
+                splitLine: { show: false }
+            },
+            yAxis: {
+                type: 'value',
+                name: 'Z-Score',
+                nameTextStyle: { color: '#9fa8da' },
+                axisLine: { lineStyle: { color: '#2a3060' } },
+                axisLabel: { color: '#9fa8da', fontSize: 10 },
+                splitLine: { lineStyle: { color: 'rgba(42, 48, 96, 0.5)' } },
+                markLine: {
+                    data: [{ yAxis: 0, lineStyle: { color: '#ffd740', type: 'dashed' } }]
+                }
+            },
+            series: series,
+            dataZoom: [{ type: 'inside' }, { type: 'slider', height: 20, bottom: 5 }]
+        });
+        
+        window.addEventListener('resize', () => chart.resize());
+    }
+    
+    // ==========================================================================
+    // 统计表格
+    // ==========================================================================
+    function renderStatsTable() {
+        const tbody = document.getElementById('stats-tbody');
+        if (!tbody || !DASHBOARD_DATA.stats) return;
+        
+        tbody.innerHTML = DASHBOARD_DATA.stats.map(s => {
+            const pct = s.current_pct;
+            let status = '正常';
+            let statusColor = 'var(--accent-green)';
+            if (pct > 80) { status = '过热'; statusColor = 'var(--accent-red)'; }
+            else if (pct > 60) { status = '偏高'; statusColor = 'var(--accent-amber)'; }
+            else if (pct < 20) { status = '过冷'; statusColor = 'var(--accent-blue)'; }
+            else if (pct < 40) { status = '偏低'; statusColor = 'var(--accent-blue)'; }
+            
+            return `
+                <tr>
+                    <td style="font-weight:600">${s.pair}</td>
+                    <td>${s.mean.toFixed(4)}</td>
+                    <td>${s.std.toFixed(4)}</td>
+                    <td>${s.skewness.toFixed(4)}</td>
+                    <td>${s.kurtosis.toFixed(4)}</td>
+                    <td style="color:var(--accent-red)">${s.max.toFixed(4)}</td>
+                    <td style="color:var(--accent-green)">${s.min.toFixed(4)}</td>
+                    <td>${s.half_life_days ? s.half_life_days.toFixed(1) : 'N/A'}</td>
+                    <td>${s.cross_mean_count}</td>
+                    <td>
+                        ${pct.toFixed(1)}%
+                        <div class="heat-bar">
+                            <div class="heat-marker" style="left: ${pct}%"></div>
+                        </div>
+                    </td>
+                    <td style="color:${statusColor}; font-weight:600">${status}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+    
+    // ==========================================================================
+    // 极差百分位热力图
+    // ==========================================================================
+    function renderHeatmap() {
+        const el = document.getElementById('chart-heatmap');
+        if (!el) return;
+        const chart = echarts.init(el, 'dark');
+        
+        const pairs = DASHBOARD_DATA.stats.map(s => s.pair);
+        const pcts = DASHBOARD_DATA.stats.map(s => s.current_pct);
+        
+        chart.setOption({
+            backgroundColor: 'transparent',
+            tooltip: {
+                trigger: 'axis',
+                backgroundColor: 'rgba(22, 27, 64, 0.95)',
+                borderColor: '#2a3060',
+                textStyle: { color: '#e8eaf6', fontSize: 12 },
+                formatter: function(params) {
+                    return `${params[0].name}<br/>百分位: ${params[0].value.toFixed(1)}%`;
+                }
+            },
+            grid: { left: 150, right: 40, top: 20, bottom: 20 },
+            xAxis: {
+                type: 'value',
+                min: 0,
+                max: 100,
+                axisLine: { lineStyle: { color: '#2a3060' } },
+                axisLabel: { color: '#9fa8da', fontSize: 10, formatter: '{value}%' },
+                splitLine: { lineStyle: { color: 'rgba(42, 48, 96, 0.3)' } }
+            },
+            yAxis: {
+                type: 'category',
+                data: pairs,
+                axisLine: { lineStyle: { color: '#2a3060' } },
+                axisLabel: { color: '#9fa8da', fontSize: 12 }
+            },
+            series: [{
+                type: 'bar',
+                data: pcts.map((v, i) => ({
+                    value: v,
+                    itemStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                            { offset: 0, color: 'rgba(105, 240, 174, 0.8)' },
+                            { offset: 0.5, color: 'rgba(255, 215, 64, 0.8)' },
+                            { offset: 1, color: 'rgba(255, 82, 82, 0.8)' }
+                        ])
+                    }
+                })),
+                barWidth: 20,
+                label: {
+                    show: true,
+                    position: 'right',
+                    color: '#e8eaf6',
+                    fontSize: 12,
+                    formatter: '{c}%'
+                }
+            }]
+        });
+        
+        window.addEventListener('resize', () => chart.resize());
+    }
+    
+    // ==========================================================================
+    // 半衰期图
+    // ==========================================================================
+    function renderHalflifeChart() {
+        const el = document.getElementById('chart-halflife');
+        if (!el) return;
+        const chart = echarts.init(el, 'dark');
+        
+        const pairs = DASHBOARD_DATA.stats.map(s => s.pair);
+        const halflives = DASHBOARD_DATA.stats.map(s => s.half_life_days || 0);
+        
+        chart.setOption({
+            backgroundColor: 'transparent',
+            tooltip: {
+                trigger: 'axis',
+                backgroundColor: 'rgba(22, 27, 64, 0.95)',
+                borderColor: '#2a3060',
+                textStyle: { color: '#e8eaf6', fontSize: 12 },
+                formatter: function(params) {
+                    return `${params[0].name}<br/>半衰期: ${params[0].value.toFixed(1)}天`;
+                }
+            },
+            grid: { left: 150, right: 40, top: 20, bottom: 20 },
+            xAxis: {
+                type: 'value',
+                name: '天数',
+                nameTextStyle: { color: '#9fa8da' },
+                axisLine: { lineStyle: { color: '#2a3060' } },
+                axisLabel: { color: '#9fa8da', fontSize: 10 },
+                splitLine: { lineStyle: { color: 'rgba(42, 48, 96, 0.3)' } }
+            },
+            yAxis: {
+                type: 'category',
+                data: pairs,
+                axisLine: { lineStyle: { color: '#2a3060' } },
+                axisLabel: { color: '#9fa8da', fontSize: 12 }
+            },
+            series: [{
+                type: 'bar',
+                data: halflives.map((v, i) => ({
+                    value: v,
+                    itemStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                            { offset: 0, color: PAIR_COLORS[i].spread },
+                            { offset: 1, color: PAIR_COLORS[i].high }
+                        ])
+                    }
+                })),
+                barWidth: 20,
+                label: {
+                    show: true,
+                    position: 'right',
+                    color: '#e8eaf6',
+                    fontSize: 12,
+                    formatter: function(p) { return p.value.toFixed(1) + '天'; }
+                }
+            }],
+            markLine: {
+                data: [{ xAxis: 15, lineStyle: { color: '#ffd740', type: 'dashed' } }]
+            }
+        });
+        
+        window.addEventListener('resize', () => chart.resize());
+    }
+    
+    // ==========================================================================
+    // PE极差综合图
+    // ==========================================================================
+    function renderPECombined() {
+        const el = document.getElementById('chart-pe-combined');
+        if (!el || !DASHBOARD_DATA.pairs) return;
+        const chart = echarts.init(el, 'dark');
+        const dates = DASHBOARD_DATA.dates;
+        
+        const series = [];
+        DASHBOARD_DATA.pairs.forEach((p, i) => {
+            if (p.pe_spread) {
+                series.push({
+                    name: p.name + ' PE极差',
+                    type: 'line',
+                    data: p.pe_spread,
+                    smooth: true,
+                    symbol: 'none',
+                    lineStyle: { width: 2, color: PAIR_COLORS[i].spread },
+                    itemStyle: { color: PAIR_COLORS[i].spread }
+                });
+            }
+        });
+        
+        chart.setOption({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'axis', backgroundColor: 'rgba(22,27,64,0.95)', borderColor: '#2a3060', textStyle: { color: '#e8eaf6' } },
+            legend: { textStyle: { color: '#9fa8da', fontSize: 11 }, top: 0 },
+            grid: { left: 60, right: 30, top: 50, bottom: 30 },
+            xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: '#2a3060' } }, axisLabel: { color: '#9fa8da', fontSize: 10, rotate: 30 }, splitLine: { show: false } },
+            yAxis: { type: 'value', name: 'PE极差', nameTextStyle: { color: '#9fa8da' }, axisLine: { lineStyle: { color: '#2a3060' } }, axisLabel: { color: '#9fa8da' }, splitLine: { lineStyle: { color: 'rgba(42,48,96,0.5)' } } },
+            series: series,
+            dataZoom: [{ type: 'inside' }, { type: 'slider', height: 20, bottom: 5 }]
+        });
+        window.addEventListener('resize', () => chart.resize());
+    }
+    
+    // 单配对PE极差图
+    function renderPEPairCharts() {
+        DASHBOARD_DATA.pairs.forEach((p, i) => {
+            const el = document.getElementById(`chart-pe-pair-${i}`);
+            if (!el || !p.pe_spread) return;
+            const chart = echarts.init(el, 'dark');
+            const dates = DASHBOARD_DATA.dates;
+            
+            const series = [
+                { name: 'PE极差', type: 'line', data: p.pe_spread, smooth: true, symbol: 'none', lineStyle: { width: 2.5, color: PAIR_COLORS[i].spread }, itemStyle: { color: PAIR_COLORS[i].spread } }
+            ];
+            if (p.pe_spread_mean) series.push({ name: '均值', type: 'line', data: p.pe_spread_mean, symbol: 'none', lineStyle: { width: 1, color: '#ffd740' }, itemStyle: { color: '#ffd740' } });
+            if (p.pe_upper) series.push({ name: '上轨', type: 'line', data: p.pe_upper, symbol: 'none', lineStyle: { width: 1, type: 'dashed', color: 'rgba(255,82,82,0.5)' }, itemStyle: { color: 'rgba(255,82,82,0.5)' } });
+            if (p.pe_lower) series.push({ name: '下轨', type: 'line', data: p.pe_lower, symbol: 'none', lineStyle: { width: 1, type: 'dashed', color: 'rgba(105,240,174,0.5)' }, itemStyle: { color: 'rgba(105,240,174,0.5)' } });
+            if (p.pe_ratio) series.push({ name: 'PE比值', type: 'line', data: p.pe_ratio, smooth: true, symbol: 'none', yAxisIndex: 1, lineStyle: { width: 1.5, type: 'dotted', color: '#b388ff' }, itemStyle: { color: '#b388ff' } });
+            
+            chart.setOption({
+                backgroundColor: 'transparent',
+                tooltip: { trigger: 'axis', backgroundColor: 'rgba(22,27,64,0.95)', borderColor: '#2a3060', textStyle: { color: '#e8eaf6' } },
+                legend: { textStyle: { color: '#9fa8da', fontSize: 10 }, top: 0 },
+                grid: { left: 50, right: 50, top: 40, bottom: 30 },
+                xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: '#2a3060' } }, axisLabel: { color: '#9fa8da', fontSize: 9, rotate: 45 }, splitLine: { show: false } },
+                yAxis: [
+                    { type: 'value', name: 'PE极差', axisLine: { lineStyle: { color: '#2a3060' } }, axisLabel: { color: '#9fa8da', fontSize: 10 }, splitLine: { lineStyle: { color: 'rgba(42,48,96,0.4)' } } },
+                    { type: 'value', name: 'PE比值', axisLine: { lineStyle: { color: '#2a3060' } }, axisLabel: { color: '#b388ff', fontSize: 10 }, splitLine: { show: false } }
+                ],
+                series: series,
+                dataZoom: [{ type: 'inside' }]
+            });
+            window.addEventListener('resize', () => chart.resize());
+        });
+    }
+    
+    // 行业PE比值图
+    function renderIndustryPE() {
+        const el = document.getElementById('chart-industry-pe');
+        if (!el || !DASHBOARD_DATA.industry_pe) return;
+        const chart = echarts.init(el, 'dark');
+        const data = DASHBOARD_DATA.industry_pe;
+        
+        const pairs = data.map(d => d.pair);
+        const currentRatios = data.map(d => d.pe_ratio);
+        const ratios1m = data.map(d => d.pe_ratio_1m);
+        const ratios1y = data.map(d => d.pe_ratio_1y);
+        
+        chart.setOption({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'axis', backgroundColor: 'rgba(22,27,64,0.95)', borderColor: '#2a3060', textStyle: { color: '#e8eaf6' } },
+            legend: { textStyle: { color: '#9fa8da' }, top: 0 },
+            grid: { left: 160, right: 40, top: 40, bottom: 20 },
+            xAxis: { type: 'value', name: '行业PE比值', nameTextStyle: { color: '#9fa8da' }, axisLine: { lineStyle: { color: '#2a3060' } }, axisLabel: { color: '#9fa8da' }, splitLine: { lineStyle: { color: 'rgba(42,48,96,0.3)' } } },
+            yAxis: { type: 'category', data: pairs, axisLine: { lineStyle: { color: '#2a3060' } }, axisLabel: { color: '#9fa8da', fontSize: 12 } },
+            series: [
+                { name: '最新PE比', type: 'bar', data: currentRatios, barWidth: 14, itemStyle: { color: '#ff5252' }, label: { show: true, position: 'right', color: '#e8eaf6', fontSize: 11, formatter: '{c}' } },
+                { name: '1月均PE比', type: 'bar', data: ratios1m, barWidth: 14, itemStyle: { color: '#ffd740' }, label: { show: true, position: 'right', color: '#e8eaf6', fontSize: 11, formatter: '{c}' } },
+                { name: '1年均PE比', type: 'bar', data: ratios1y, barWidth: 14, itemStyle: { color: '#448aff' }, label: { show: true, position: 'right', color: '#e8eaf6', fontSize: 11, formatter: '{c}' } }
+            ]
+        });
+        window.addEventListener('resize', () => chart.resize());
+    }
+    
+    // 综合极差图
+    function renderCompositeCombined() {
+        const el = document.getElementById('chart-composite-combined');
+        if (!el || !DASHBOARD_DATA.pairs) return;
+        const chart = echarts.init(el, 'dark');
+        const dates = DASHBOARD_DATA.dates;
+        
+        const series = [];
+        DASHBOARD_DATA.pairs.forEach((p, i) => {
+            if (p.composite) {
+                series.push({
+                    name: p.name,
+                    type: 'line',
+                    data: p.composite,
+                    smooth: true,
+                    symbol: 'none',
+                    lineStyle: { width: 2, color: PAIR_COLORS[i].spread },
+                    itemStyle: { color: PAIR_COLORS[i].spread }
+                });
+                if (p.composite_upper) {
+                    series.push({
+                        name: p.name + ' 上轨',
+                        type: 'line',
+                        data: p.composite_upper,
+                        symbol: 'none',
+                        lineStyle: { width: 1, type: 'dashed', color: 'rgba(255,82,82,0.3)' },
+                        itemStyle: { color: 'rgba(255,82,82,0.3)' }
+                    });
+                }
+                if (p.composite_lower) {
+                    series.push({
+                        name: p.name + ' 下轨',
+                        type: 'line',
+                        data: p.composite_lower,
+                        symbol: 'none',
+                        lineStyle: { width: 1, type: 'dashed', color: 'rgba(105,240,174,0.3)' },
+                        itemStyle: { color: 'rgba(105,240,174,0.3)' }
+                    });
+                }
+            }
+        });
+        
+        chart.setOption({
+            backgroundColor: 'transparent',
+            tooltip: { trigger: 'axis', backgroundColor: 'rgba(22,27,64,0.95)', borderColor: '#2a3060', textStyle: { color: '#e8eaf6' } },
+            legend: { textStyle: { color: '#9fa8da', fontSize: 11 }, top: 0, type: 'scroll' },
+            grid: { left: 60, right: 30, top: 50, bottom: 30 },
+            xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: '#2a3060' } }, axisLabel: { color: '#9fa8da', fontSize: 10, rotate: 30 }, splitLine: { show: false } },
+            yAxis: { type: 'value', name: '综合极差', nameTextStyle: { color: '#9fa8da' }, axisLine: { lineStyle: { color: '#2a3060' } }, axisLabel: { color: '#9fa8da' }, splitLine: { lineStyle: { color: 'rgba(42,48,96,0.5)' } } },
+            series: series,
+            dataZoom: [{ type: 'inside' }, { type: 'slider', height: 20, bottom: 5 }]
+        });
+        window.addEventListener('resize', () => chart.resize());
+    }
+    
+    // 三维对比表
+    function renderCompareTable() {
+        const tbody = document.getElementById('compare-tbody');
+        if (!tbody || !DASHBOARD_DATA.alerts) return;
+        
+        tbody.innerHTML = DASHBOARD_DATA.alerts.map(a => {
+            const priceSig = a.price_signal === 1 ? '偏高🔴' : (a.price_signal === -1 ? '偏低🟢' : '正常⚪');
+            const peSig = a.pe_signal === 1 ? '偏高🔴' : (a.pe_signal === -1 ? '偏低🟢' : '正常⚪');
+            const compSig = a.composite_signal === 1 ? '偏高🔴' : (a.composite_signal === -1 ? '偏低🟢' : '正常⚪');
+            const finalColor = a.alert_level.includes('极端') ? 'var(--accent-red)' : (a.alert_level.includes('偏高') ? 'var(--accent-amber)' : (a.alert_level.includes('偏低') ? 'var(--accent-blue)' : 'var(--accent-green)'));
+            
+            return `<tr>
+                <td style="font-weight:600">${a.pair}</td>
+                <td>${a.current_spread !== undefined ? a.current_spread.toFixed(4) : '-'}</td>
+                <td>${priceSig}</td>
+                <td>${a.pe_spread !== undefined ? a.pe_spread.toFixed(4) : '-'}</td>
+                <td>${peSig}</td>
+                <td>${a.composite_spread !== undefined ? a.composite_spread.toFixed(4) : '-'}</td>
+                <td>${compSig}</td>
+                <td style="color:var(--accent-purple)">${a.pe_ratio !== undefined ? a.pe_ratio : '-'}</td>
+                <td style="color:var(--accent-amber)">${a.industry_pe_ratio !== undefined ? a.industry_pe_ratio : '-'}</td>
+                <td>${a.industry_pe_accel !== undefined ? a.industry_pe_accel + '%' : '-'}</td>
+                <td style="color:${finalColor}; font-weight:600">${a.alert_level}</td>
+            </tr>`;
+        }).join('');
+    }
+    // ==========================================================================
+    function setupTabs() {
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                const tab = this.dataset.tab;
+                document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+                document.getElementById(`tab-${tab}`).style.display = 'block';
+                
+                // 触发resize以确保图表正确渲染
+                window.dispatchEvent(new Event('resize'));
+            });
+        });
+    }
+    
+    // ==========================================================================
+    // 启动
+    // ==========================================================================
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

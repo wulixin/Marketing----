@@ -1,0 +1,72 @@
+[
+  {
+    "pair": "贵州茅台 vs 寒武纪",
+    "mean": -0.7163,
+    "std": 1.8056,
+    "skewness": 0.2293,
+    "kurtosis": 0.5263,
+    "max": 6.4395,
+    "min": -5.7699,
+    "max_date": "2025-11-12",
+    "min_date": "2026-01-29",
+    "half_life_days": 11.2,
+    "cross_mean_count": 59,
+    "current_pct": 28.48
+  },
+  {
+    "pair": "海光信息 vs 上海机场",
+    "mean": 1.0491,
+    "std": 1.6383,
+    "skewness": -0.1228,
+    "kurtosis": -0.224,
+    "max": 5.5292,
+    "min": -3.8543,
+    "max_date": "2025-05-22",
+    "min_date": "2025-08-14",
+    "half_life_days": 9.1,
+    "cross_mean_count": 55,
+    "current_pct": 72.22
+  },
+  {
+    "pair": "中际旭创 vs 招商银行",
+    "mean": 0.2295,
+    "std": 1.9074,
+    "skewness": 0.1876,
+    "kurtosis": -0.3118,
+    "max": 5.2728,
+    "min": -4.7256,
+    "max_date": "2025-06-10",
+    "min_date": "2024-03-08",
+    "half_life_days": 10.5,
+    "cross_mean_count": 57,
+    "current_pct": 92.43
+  },
+  {
+    "pair": "工业富联 vs 海天味业",
+    "mean": 0.2805,
+    "std": 1.8483,
+    "skewness": -0.1091,
+    "kurtosis": -0.0607,
+    "max": 5.3134,
+    "min": -4.8256,
+    "max_date": "2025-04-10",
+    "min_date": "2024-07-03",
+    "half_life_days": 15.5,
+    "cross_mean_count": 56,
+    "current_pct": 72.87
+  },
+  {
+    "pair": "宁德时代 vs 中信证券",
+    "mean": 0.3568,
+    "std": 1.4954,
+    "skewness": 0.5658,
+    "kurtosis": 0.0639,
+    "max": 5.1052,
+    "min": -3.6682,
+    "max_date": "2025-12-11",
+    "min_date": "2024-04-24",
+    "half_life_days": 14.8,
+    "cross_mean_count": 59,
+    "current_pct": 46.98
+  }
+]
