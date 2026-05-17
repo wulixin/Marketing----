@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>退市股机会挖掘系统 | 另类数据挖掘</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/theme/dark.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg-primary:#0a0e27;--bg-secondary:#111638;--bg-card:#161b40;
+  --accent-red:#ff4757;--accent-green:#2ed573;--accent-orange:#ffa502;--accent-blue:#3742fa;
+  --accent-purple:#a55eea;--text-primary:#e8e8f0;--text-secondary:#8e8ea0;
+  --border:#2a2f55;--glow-green:0 0 20px rgba(46,213,115,.3);
+  --glow-red:0 0 20px rgba(255,71,87,.3);--glow-orange:0 0 20px rgba(255,165,2,.3);
+}
+body{font-family:'PingFang SC','Microsoft YaHei','Helvetica Neue',sans-serif;background:var(--bg-primary);color:var(--text-primary);overflow-x:hidden}
+.header{background:linear-gradient(135deg,#0a0e27 0%,#1a1f4e 50%,#0a0e27 100%);padding:24px 40px;border-bottom:1px solid var(--border);position:relative;overflow:hidden}
+.header::before{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:radial-gradient(circle at 30% 50%,rgba(46,213,115,.05) 0%,transparent 50%),radial-gradient(circle at 70% 50%,rgba(255,71,87,.05) 0%,transparent 50%);animation:headerGlow 8s ease-in-out infinite}
+@keyframes headerGlow{0%,100%{opacity:.5}50%{opacity:1}}
+.header h1{font-size:28px;font-weight:700;background:linear-gradient(90deg,#2ed573,#ffa502,#ff4757);-webkit-background-clip:text;-webkit-text-fill-color:transparent;position:relative;z-index:1}
+.header .subtitle{color:var(--text-secondary);font-size:14px;margin-top:4px;position:relative;z-index:1}
+.header .data-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(46,213,115,.15);border:1px solid rgba(46,213,115,.3);border-radius:20px;padding:4px 12px;font-size:12px;color:#2ed573;margin-left:16px;position:relative;z-index:1}
+.pulse{width:6px;height:6px;background:#2ed573;border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(46,213,115,.7)}70%{box-shadow:0 0 0 6px rgba(46,213,115,0)}100%{box-shadow:0 0 0 0 rgba(46,213,115,0)}}
+.nav{display:flex;gap:4px;padding:16px 40px;background:var(--bg-secondary);border-bottom:1px solid var(--border);overflow-x:auto}
+.nav-btn{padding:8px 20px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);border-radius:8px;cursor:pointer;font-size:13px;transition:all .3s;white-space:nowrap}
+.nav-btn:hover{border-color:var(--accent-blue);color:var(--text-primary);background:rgba(55,66,250,.1)}
+.nav-btn.active{background:linear-gradient(135deg,rgba(55,66,250,.3),rgba(165,94,234,.3));border-color:var(--accent-blue);color:#fff;box-shadow:var(--glow-green)}
+.section{display:none;padding:24px 40px;animation:fadeIn .4s ease}
+.section.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:24px}
+.kpi-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;position:relative;overflow:hidden;transition:all .3s}
+.kpi-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.kpi-card .label{font-size:12px;color:var(--text-secondary);margin-bottom:8px}
+.kpi-card .value{font-size:32px;font-weight:700}
+.kpi-card .change{font-size:12px;margin-top:4px}
+.kpi-card::after{content:'';position:absolute;top:0;left:0;width:100%;height:3px}
+.kpi-card.red::after{background:var(--accent-red)}.kpi-card.green::after{background:var(--accent-green)}
+.kpi-card.orange::after{background:var(--accent-orange)}.kpi-card.blue::after{background:var(--accent-blue)}
+.kpi-card.purple::after{background:var(--accent-purple)}
+.chart-grid{display:grid;gap:16px;margin-bottom:24px}
+.chart-grid.col-2{grid-template-columns:1fr 1fr}
+.chart-grid.col-3{grid-template-columns:1fr 1fr 1fr}
+.chart-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;min-height:380px}
+.chart-card h3{font-size:15px;font-weight:600;margin-bottom:16px;color:var(--text-primary)}
+.chart-container{width:100%;height:320px}
+.table-wrap{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px}
+.table-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)}
+.table-header h3{font-size:15px;font-weight:600}
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap}
+.filter-btn{padding:4px 12px;border:1px solid var(--border);background:transparent;color:var(--text-secondary);border-radius:6px;cursor:pointer;font-size:12px;transition:all .2s}
+.filter-btn:hover{border-color:var(--accent-blue);color:var(--text-primary)}
+.filter-btn.active{background:rgba(55,66,250,.2);border-color:var(--accent-blue);color:#fff}
+.data-table{width:100%;border-collapse:collapse}
+.data-table th{background:rgba(42,47,85,.5);padding:10px 12px;text-align:left;font-size:12px;font-weight:600;color:var(--text-secondary);position:sticky;top:0;white-space:nowrap}
+.data-table td{padding:10px 12px;border-bottom:1px solid rgba(42,47,85,.3);font-size:13px;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+.data-table tr:hover td{background:rgba(55,66,250,.05)}
+.status-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.status-badge.s1{background:rgba(46,213,115,.15);color:#2ed573;border:1px solid rgba(46,213,115,.3)}
+.status-badge.s2{background:rgba(255,165,2,.15);color:#ffa502;border:1px solid rgba(255,165,2,.3)}
+.status-badge.s3{background:rgba(255,71,87,.15);color:#ff4757;border:1px solid rgba(255,71,87,.3)}
+.status-badge.s4{background:rgba(255,165,2,.15);color:#e67e22;border:1px solid rgba(255,165,2,.3)}
+.status-badge.s5{background:rgba(142,142,160,.15);color:#8e8ea0;border:1px solid rgba(142,142,160,.3)}
+.score-bar{width:60px;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle}
+.score-fill{height:100%;border-radius:3px;transition:width .6s}
+.score-text{font-size:12px;margin-left:6px;display:inline-block;vertical-align:middle;font-weight:600}
+.report-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px}
+.report-card h3{font-size:18px;font-weight:700;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.report-card p{color:var(--text-secondary);font-size:14px;line-height:1.8;margin-bottom:8px}
+.report-card .highlight{color:#2ed573;font-weight:600}
+.report-card .warning{color:#ff4757;font-weight:600}
+.report-card .orange-hl{color:#ffa502;font-weight:600}
+.insight-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.insight-item{background:rgba(42,47,85,.3);border-radius:8px;padding:16px}
+.insight-item .label{font-size:12px;color:var(--text-secondary);margin-bottom:6px}
+.insight-item .val{font-size:24px;font-weight:700}
+.search-box{padding:6px 12px;background:rgba(42,47,85,.3);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:13px;width:200px;outline:none}
+.search-box:focus{border-color:var(--accent-blue)}
+.search-box::placeholder{color:var(--text-secondary)}
+.tab-panel{margin-top:16px}
+.tab-btns{display:flex;gap:4px;margin-bottom:16px}
+.tab-btn{padding:6px 16px;background:transparent;border:1px solid var(--border);color:var(--text-secondary);border-radius:6px;cursor:pointer;font-size:12px;transition:all .2s}
+.tab-btn.active{background:rgba(55,66,250,.2);border-color:var(--accent-blue);color:#fff}
+.footer{text-align:center;padding:24px;color:var(--text-secondary);font-size:12px;border-top:1px solid var(--border);margin-top:40px}
+.tooltip-custom{position:absolute;background:rgba(22,27,64,.95);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;pointer-events:none;z-index:100;max-width:300px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+@media(max-width:1024px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.chart-grid.col-2,.chart-grid.col-3{grid-template-columns:1fr}}
+@media(max-width:768px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.section{padding:16px 20px}.header{padding:16px 20px}.nav{padding:12px 20px}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🚨 退市股机会挖掘系统</h1>
+  <div class="subtitle">另类数据挖掘 — 基于公告文本的退市风险识别与摘帽机会挖掘</div>
+  <span class="data-badge"><span class="pulse"></span>数据更新至 2026-05-15</span>
+</div>
+
+<nav class="nav">
+  <button class="nav-btn active" onclick="showSection('overview')">📊 全局概览</button>
+  <button class="nav-btn" onclick="showSection('focus')">🔬 三大板块深度</button>
+  <button class="nav-btn" onclick="showSection('opportunity')">💰 摘帽机会挖掘</button>
+  <button class="nav-btn" onclick="showSection('risk')">⚠️ 退市风险预警</button>
+  <button class="nav-btn" onclick="showSection('report')">📄 分析报告</button>
+  <button class="nav-btn" onclick="showSection('table')">📋 全量数据表</button>
+</nav>
+
+<!-- 全局概览 -->
+<div id="sec-overview" class="section active">
+  <div class="kpi-grid" id="kpi-overview"></div>
+  <div class="chart-grid col-2">
+    <div class="chart-card"><h3>各板块风险状态分布</h3><div id="chart-board-status" class="chart-container"></div></div>
+    <div class="chart-card"><h3>风险状态占比</h3><div id="chart-status-pie" class="chart-container"></div></div>
+  </div>
+  <div class="chart-grid col-2">
+    <div class="chart-card"><h3>公告类型TOP10分布</h3><div id="chart-ann-type" class="chart-container"></div></div>
+    <div class="chart-card"><h3>各板块月度公告时间线</h3><div id="chart-timeline" class="chart-container"></div></div>
+  </div>
+  <div class="chart-grid col-2">
+    <div class="chart-card"><h3>退市风险公司行业分布</h3><div id="chart-industry" class="chart-container"></div></div>
+    <div class="chart-card"><h3>企业类型与风险状态交叉分析</h3><div id="chart-ent-type" class="chart-container"></div></div>
+  </div>
+</div>
+
+<!-- 三大板块深度 -->
+<div id="sec-focus" class="section">
+  <div class="kpi-grid" id="kpi-focus"></div>
+  <div class="chart-grid col-3">
+    <div class="chart-card"><h3>科创板风险状态</h3><div id="chart-kcb-status" class="chart-container"></div></div>
+    <div class="chart-card"><h3>北交所风险状态</h3><div id="chart-bjs-status" class="chart-container"></div></div>
+    <div class="chart-card"><h3>创业板风险状态</h3><div id="chart-cyb-status" class="chart-container"></div></div>
+  </div>
+  <div class="chart-grid col-2">
+    <div class="chart-card"><h3>三大板块退市公司价格分布</h3><div id="chart-price-dist" class="chart-container"></div></div>
+    <div class="chart-card"><h3>三大板块机会评分排名</h3><div id="chart-score-rank" class="chart-container"></div></div>
+  </div>
+  <div class="chart-grid col-2">
+    <div class="chart-card"><h3>三大板块月度公告趋势</h3><div id="chart-focus-timeline" class="chart-container"></div></div>
+    <div class="chart-card"><h3>三大板块行业构成</h3><div id="chart-focus-industry" class="chart-container"></div></div>
+  </div>
+</div>
+
+<!-- 摘帽机会挖掘 -->
+<div id="sec-opportunity" class="section">
+  <div class="kpi-grid" id="kpi-zhaimao"></div>
+  <div class="chart-grid col-2">
+    <div class="chart-card"><h3>摘帽机会公司评分排名（全市场）</h3><div id="chart-zhaimao-rank" class="chart-container"></div></div>
+    <div class="chart-card"><h3>摘帽成功率按板块</h3><div id="chart-zhaimao-rate" class="chart-container"></div></div>
+  </div>
+  <div class="table-wrap">
+    <div class="table-header"><h3>💰 摘帽机会公司明细</h3>
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="filterZhaimao('all')">全部</button>
+        <button class="filter-btn" onclick="filterZhaimao('科创板')">科创板</button>
+        <button class="filter-btn" onclick="filterZhaimao('北交所')">北交所</button>
+        <button class="filter-btn" onclick="filterZhaimao('创业板')">创业板</button>
+        <button class="filter-btn" onclick="filterZhaimao('沪市A股')">沪市A股</button>
+        <button class="filter-btn" onclick="filterZhaimao('深市A股主板')">深市主板</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto;max-height:500px;overflow-y:auto">
+      <table class="data-table" id="tbl-zhaimao"><thead><tr>
+        <th>代码</th><th>名称</th><th>板块</th><th>风险状态</th><th>收盘价</th><th>涨跌幅</th><th>机会评分</th><th>市净率</th><th>企业类型</th><th>实控人</th><th>行业</th><th>最新公告</th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- 退市风险预警 -->
+<div id="sec-risk" class="section">
+  <div class="kpi-grid" id="kpi-risk"></div>
+  <div class="chart-grid col-2">
+    <div class="chart-card"><h3>退市风险高危公司评分（风险越高分越低）</h3><div id="chart-risk-score" class="chart-container"></div></div>
+    <div class="chart-card"><h3>风险实施公司公告频率</h3><div id="chart-risk-freq" class="chart-container"></div></div>
+  </div>
+  <div class="table-wrap">
+    <div class="table-header"><h3>⚠️ 退市风险高危公司明细</h3>
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="filterRisk('all')">全部</button>
+        <button class="filter-btn" onclick="filterRisk('退市风险实施中')">实施中</button>
+        <button class="filter-btn" onclick="filterRisk('风险提示中')">风险提示</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto;max-height:500px;overflow-y:auto">
+      <table class="data-table" id="tbl-risk"><thead><tr>
+        <th>代码</th><th>名称</th><th>板块</th><th>风险状态</th><th>收盘价</th><th>涨跌幅</th><th>公告数</th><th>实施次数</th><th>风险提示</th><th>行业</th><th>企业类型</th><th>游资偏好</th><th>最新公告</th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- 分析报告 -->
+<div id="sec-report" class="section">
+  <div class="report-card" id="report-content"></div>
+  <div class="chart-grid col-2" style="margin-top:16px">
+    <div class="chart-card"><h3>三大板块退市核心指标对比</h3><div id="chart-report-radar" class="chart-container"></div></div>
+    <div class="chart-card"><h3>退市公司上市年限分布</h3><div id="chart-report-listage" class="chart-container"></div></div>
+  </div>
+</div>
+
+<!-- 全量数据表 -->
+<div id="sec-table" class="section">
+  <div class="table-wrap">
+    <div class="table-header">
+      <h3>📋 全量退市风险公司数据</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" class="search-box" id="search-input" placeholder="搜索代码/名称..." oninput="searchTable()">
+        <select class="search-box" id="board-filter" onchange="searchTable()" style="width:120px">
+          <option value="all">全部板块</option>
+          <option value="科创板">科创板</option>
+          <option value="北交所">北交所</option>
+          <option value="创业板">创业板</option>
+          <option value="沪市A股">沪市A股</option>
+          <option value="深市A股主板">深市主板</option>
+        </select>
+        <select class="search-box" id="status-filter" onchange="searchTable()" style="width:120px">
+          <option value="all">全部状态</option>
+          <option value="摘帽成功">摘帽成功</option>
+          <option value="摘帽申请中">摘帽申请中</option>
+          <option value="退市风险实施中">风险实施中</option>
+          <option value="风险提示中">风险提示中</option>
+          <option value="其他公告">其他</option>
+        </select>
+      </div>
+    </div>
+    <div style="overflow-x:auto;max-height:600px;overflow-y:auto">
+      <table class="data-table" id="tbl-all"><thead><tr>
+        <th>代码</th><th>名称</th><th>板块</th><th>风险状态</th><th>机会评分</th><th>收盘价</th><th>涨跌幅</th><th>市净率</th><th>滚动PE</th><th>市值</th><th>行业</th><th>细分行业</th><th>企业类型</th><th>实控人</th><th>投资风格</th><th>投资标签</th><th>游资偏好</th><th>公告数</th><th>摘帽</th><th>实施</th><th>提示</th><th>最新日期</th><th>最新公告</th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  退市股机会挖掘系统 v1.0 | 另类数据挖掘 | 数据来源：证券信息披露公告 | 仅供研究参考，不构成投资建议
+</div>
+
+<script src="delisting_inline_data.js"></script>
+<script>
+// ============================================================
+//  全局变量与工具函数
+// ============================================================
+const S = DATA.summary;
+const stocks = DATA.stocks;
+const BS = DATA.board_stats;
+const statusMap = {'摘帽成功':'s1','摘帽申请中':'s2','退市风险实施中':'s3','风险提示中':'s4','其他公告':'s5'};
+const statusColors = {'摘帽成功':'#2ed573','摘帽申请中':'#ffa502','退市风险实施中':'#ff4757','风险提示中':'#e67e22','其他公告':'#8e8ea0'};
+const boardColors = {'沪市A股':'#3742fa','深市A股主板':'#a55eea','创业板':'#2ed573','北交所':'#ffa502','科创板':'#ff6b81'};
+const focusBoards = ['科创板','北交所','创业板'];
+
+function fmt(v,d=2){return v!=null&&v!==''&&!isNaN(v)?Number(v).toFixed(d):'-'}
+function pctColor(v){if(v==null||v==='')return'';v=Number(v);return v>0?'color:#ff4757':v<0?'color:#2ed573':''}
+function pctText(v){if(v==null||v==='')return'-';v=Number(v);return(v>0?'+':'')+v.toFixed(2)+'%'}
+function safeNum(v){return v!=null&&v!==''&&!isNaN(v)?Number(v):null}
+function scoreColor(s){if(s>=60)return'#2ed573';if(s>=40)return'#ffa502';return'#ff4757'}
+
+// ============================================================
+//  导航
+// ============================================================
+function showSection(id){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('sec-'+id).classList.add('active');
+  event.target.classList.add('active');
+  setTimeout(()=>{initCharts(id)},100);
+}
+
+// ============================================================
+//  KPI渲染
+// ============================================================
+function renderKPIs(){
+  // Overview
+  const zhaimaoTotal = stocks.filter(s=>s.status==='摘帽成功'||s.status==='摘帽申请中').length;
+  const riskTotal = stocks.filter(s=>s.status==='退市风险实施中'||s.status==='风险提示中').length;
+  const focusTotal = stocks.filter(s=>focusBoards.includes(s.board)).length;
+  document.getElementById('kpi-overview').innerHTML=`
+    <div class="kpi-card blue"><div class="label">涉及公司总数</div><div class="value">${S.total_stocks}</div><div class="change" style="color:var(--text-secondary)">公告${S.total_announcements}条</div></div>
+    <div class="kpi-card green"><div class="label">摘帽/申请公司</div><div class="value" style="color:#2ed573">${zhaimaoTotal}</div><div class="change" style="color:#2ed573">占比${(zhaimaoTotal/S.total_stocks*100).toFixed(1)}%</div></div>
+    <div class="kpi-card red"><div class="label">风险实施/提示</div><div class="value" style="color:#ff4757">${riskTotal}</div><div class="change" style="color:#ff4757">占比${(riskTotal/S.total_stocks*100).toFixed(1)}%</div></div>
+    <div class="kpi-card orange"><div class="label">三大板块公司</div><div class="value" style="color:#ffa502">${focusTotal}</div><div class="change" style="color:var(--text-secondary)">科创+北交+创业</div></div>
+    <div class="kpi-card purple"><div class="label">平均机会评分</div><div class="value" style="color:#a55eea">${(stocks.reduce((a,b)=>a+(b.opportunity_score||0),0)/stocks.length).toFixed(0)}</div><div class="change" style="color:var(--text-secondary)">满分100</div></div>`;
+
+  // Focus
+  const fz = stocks.filter(s=>focusBoards.includes(s.board));
+  const fzm = fz.filter(s=>s.status==='摘帽成功'||s.status==='摘帽申请中').length;
+  const frk = fz.filter(s=>s.status==='退市风险实施中'||s.status==='风险提示中').length;
+  document.getElementById('kpi-focus').innerHTML=`
+    <div class="kpi-card blue"><div class="label">三大板块公司数</div><div class="value">${focusTotal}</div></div>
+    <div class="kpi-card green"><div class="label">科创板</div><div class="value" style="color:#ff6b81">${stocks.filter(s=>s.board==='科创板').length}</div><div class="change" style="color:#2ed573">摘帽${stocks.filter(s=>s.board==='科创板'&&(s.status==='摘帽成功'||s.status==='摘帽申请中')).length}只</div></div>
+    <div class="kpi-card orange"><div class="label">北交所</div><div class="value" style="color:#ffa502">${stocks.filter(s=>s.board==='北交所').length}</div><div class="change" style="color:#ff4757">风险${stocks.filter(s=>s.board==='北交所'&&(s.status==='退市风险实施中'||s.status==='风险提示中')).length}只</div></div>
+    <div class="kpi-card green"><div class="label">创业板</div><div class="value" style="color:#2ed573">${stocks.filter(s=>s.board==='创业板').length}</div><div class="change" style="color:#2ed573">摘帽${stocks.filter(s=>s.board==='创业板'&&(s.status==='摘帽成功'||s.status==='摘帽申请中')).length}只</div></div>
+    <div class="kpi-card purple"><div class="label">三大板块摘帽率</div><div class="value" style="color:#a55eea">${(fzm/focusTotal*100).toFixed(1)}%</div></div>`;
+
+  // Zhaimao
+  document.getElementById('kpi-zhaimao').innerHTML=`
+    <div class="kpi-card green"><div class="label">摘帽成功</div><div class="value" style="color:#2ed573">${stocks.filter(s=>s.status==='摘帽成功').length}</div></div>
+    <div class="kpi-card orange"><div class="label">摘帽申请中</div><div class="value" style="color:#ffa502">${stocks.filter(s=>s.status==='摘帽申请中').length}</div></div>
+    <div class="kpi-card blue"><div class="label">高评分(≥60)</div><div class="value" style="color:#3742fa">${stocks.filter(s=>(s.status==='摘帽成功'||s.status==='摘帽申请中')&&s.opportunity_score>=60).length}</div></div>
+    <div class="kpi-card purple"><div class="label">国企背景</div><div class="value" style="color:#a55eea">${stocks.filter(s=>(s.status==='摘帽成功'||s.status==='摘帽申请中')&&(s.ent_type==='中央企业'||s.ent_type==='地方国有企业')).length}</div></div>
+    <div class="kpi-card red"><div class="label">有实控人</div><div class="value">${stocks.filter(s=>(s.status==='摘帽成功'||s.status==='摘帽申请中')&&s.controller&&s.controller!=='无实际控制人'&&s.controller!=='NA'&&s.controller!=='nan').length}</div></div>`;
+
+  // Risk
+  document.getElementById('kpi-risk').innerHTML=`
+    <div class="kpi-card red"><div class="label">退市风险实施中</div><div class="value" style="color:#ff4757">${stocks.filter(s=>s.status==='退市风险实施中').length}</div></div>
+    <div class="kpi-card orange"><div class="label">风险提示中</div><div class="value" style="color:#ffa502">${stocks.filter(s=>s.status==='风险提示中').length}</div></div>
+    <div class="kpi-card blue"><div class="label">三大板块高危</div><div class="value" style="color:#3742fa">${stocks.filter(s=>focusBoards.includes(s.board)&&(s.status==='退市风险实施中'||s.status==='风险提示中')).length}</div></div>
+    <div class="kpi-card purple"><div class="label">高游资偏好(≥5)</div><div class="value" style="color:#a55eea">${stocks.filter(s=>(s.status==='退市风险实施中'||s.status==='风险提示中')&&safeNum(s.hot_money)>=5).length}</div></div>
+    <div class="kpi-card green"><div class="label">高危中国企</div><div class="value">${stocks.filter(s=>(s.status==='退市风险实施中'||s.status==='风险提示中')&&(s.ent_type==='中央企业'||s.ent_type==='地方国有企业')).length}</div></div>`;
+}
+
+// ============================================================
+//  图表初始化
+// ============================================================
+const chartInstances = {};
+
+function initChart(id, option){
+  if(chartInstances[id]){chartInstances[id].dispose()}
+  const el = document.getElementById(id);
+  if(!el)return;
+  const c = echarts.init(el,'dark');
+  c.setOption(option);
+  chartInstances[id]=c;
+  window.addEventListener('resize',()=>c.resize());
+}
+
+function initCharts(section){
+  if(section==='overview')initOverviewCharts();
+  else if(section==='focus')initFocusCharts();
+  else if(section==='opportunity')initOpportunityCharts();
+  else if(section==='risk')initRiskCharts();
+  else if(section==='report')initReportSection();
+}
+
+// ============================================================
+//  全局概览图表
+// ============================================================
+function initOverviewCharts(){
+  // 板块-状态 堆叠柱状图
+  const boards = Object.keys(BS);
+  const statuses = ['摘帽成功','摘帽申请中','退市风险实施中','风险提示中','其他公告'];
+  initChart('chart-board-status',{
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},
+    legend:{data:statuses,top:0,textStyle:{fontSize:11}},
+    grid:{left:60,right:20,bottom:40,top:40},
+    xAxis:{type:'category',data:boards,axisLabel:{fontSize:11}},
+    yAxis:{type:'value',name:'公司数'},
+    series:statuses.map(s=>({
+      name:s,type:'bar',stack:'total',
+      data:boards.map(b=>(BS[b].status_dist[s]||0)),
+      itemStyle:{color:statusColors[s]}
+    }))
+  });
+
+  // 风险状态饼图
+  const statusCnt={};
+  stocks.forEach(s=>{statusCnt[s.status]=(statusCnt[s.status]||0)+1});
+  initChart('chart-status-pie',{
+    tooltip:{trigger:'item',formatter:'{b}: {c} ({d}%)'},
+    series:[{type:'pie',radius:['40%','70%'],center:['50%','55%'],
+      data:Object.entries(statusCnt).map(([k,v])=>({name:k,value:v,itemStyle:{color:statusColors[k]}})),
+      label:{formatter:'{b}\n{d}%'},emphasis:{itemStyle:{shadowBlur:10,shadowColor:'rgba(0,0,0,.5)'}}}]
+  });
+
+  // 公告类型TOP10
+  const at = DATA.announcement_types;
+  const atEntries = Object.entries(at).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  initChart('chart-ann-type',{
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},
+    grid:{left:180,right:30,bottom:20,top:10},
+    xAxis:{type:'value'},
+    yAxis:{type:'category',data:atEntries.map(e=>e[0].length>20?e[0].slice(0,20)+'...':e[0]),axisLabel:{fontSize:11}},
+    series:[{type:'bar',data:atEntries.map(e=>e[1]),
+      itemStyle:{color:new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:'#3742fa'},{offset:1,color:'#a55eea'}])},
+      barWidth:14,label:{show:true,position:'right',fontSize:11}}]
+  });
+
+  // 月度时间线
+  const tlData = DATA.timeline;
+  const allMonths = new Set();
+  Object.values(tlData).forEach(m=>Object.keys(m).forEach(k=>allMonths.add(k)));
+  const sortedMonths = [...allMonths].sort();
+  initChart('chart-timeline',{
+    tooltip:{trigger:'axis'},
+    legend:{data:Object.keys(tlData),top:0,textStyle:{fontSize:11}},
+    grid:{left:50,right:20,bottom:30,top:40},
+    xAxis:{type:'category',data:sortedMonths,axisLabel:{fontSize:10,rotate:30}},
+    yAxis:{type:'value',name:'公告数'},
+    series:Object.entries(tlData).map(([b,d])=>({
+      name:b,type:'line',smooth:true,
+      data:sortedMonths.map(m=>d[m]||0),
+      itemStyle:{color:boardColors[b]},lineStyle:{width:2}
+    }))
+  });
+
+  // 行业分布
+  const ind = DATA.industry_data;
+  const indSorted = Object.entries(ind).sort((a,b)=>b[1].total-a[1].total).slice(0,12);
+  initChart('chart-industry',{
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},
+    legend:{data:['摘帽','风险','其他'],top:0,textStyle:{fontSize:11}},
+    grid:{left:80,right:20,bottom:20,top:40},
+    xAxis:{type:'value'},
+    yAxis:{type:'category',data:indSorted.map(e=>e[0]),axisLabel:{fontSize:11}},
+    series:[
+      {name:'摘帽',type:'bar',stack:'t',data:indSorted.map(e=>e[1].zhaimao),itemStyle:{color:'#2ed573'},barWidth:14},
+      {name:'风险',type:'bar',stack:'t',data:indSorted.map(e=>e[1].risk),itemStyle:{color:'#ff4757'}},
+      {name:'其他',type:'bar',stack:'t',data:indSorted.map(e=>e[1].total-e[1].zhaimao-e[1].risk),itemStyle:{color:'#8e8ea0'}}
+    ]
+  });
+
+  // 企业类型
+  const entTypeData = {};
+  stocks.forEach(s=>{
+    const et = s.ent_type||'未知';
+    if(!entTypeData[et])entTypeData[et]={total:0,zhaimao:0,risk:0};
+    entTypeData[et].total++;
+    if(s.status==='摘帽成功'||s.status==='摘帽申请中')entTypeData[et].zhaimao++;
+    if(s.status==='退市风险实施中'||s.status==='风险提示中')entTypeData[et].risk++;
+  });
+  const etSorted = Object.entries(entTypeData).sort((a,b)=>b[1].total-a[1].total);
+  initChart('chart-ent-type',{
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},
+    legend:{data:['摘帽','风险','其他'],top:0,textStyle:{fontSize:11}},
+    grid:{left:100,right:20,bottom:20,top:40},
+    xAxis:{type:'value'},
+    yAxis:{type:'category',data:etSorted.map(e=>e[0]),axisLabel:{fontSize:11}},
+    series:[
+      {name:'摘帽',type:'bar',stack:'t',data:etSorted.map(e=>e[1].zhaimao),itemStyle:{color:'#2ed573'},barWidth:14},
+      {name:'风险',type:'bar',stack:'t',data:etSorted.map(e=>e[1].risk),itemStyle:{color:'#ff4757'}},
+      {name:'其他',type:'bar',stack:'t',data:etSorted.map(e=>e[1].total-e[1].zhaimao-e[1].risk),itemStyle:{color:'#8e8ea0'}}
+    ]
+  });
+}
+
+// ============================================================
+//  三大板块深度图表
+// ============================================================
+function initFocusCharts(){
+  const focus = stocks.filter(s=>focusBoards.includes(s.board));
+  const kcb = focus.filter(s=>s.board==='科创板');
+  const bjs = focus.filter(s=>s.board==='北交所');
+  const cyb = focus.filter(s=>s.board==='创业板');
+
+  function pieData(arr){
+    const cnt={};
+    arr.forEach(s=>{cnt[s.status]=(cnt[s.status]||0)+1});
+    return Object.entries(cnt).map(([k,v])=>({name:k,value:v,itemStyle:{color:statusColors[k]}}));
+  }
+
+  initChart('chart-kcb-status',{tooltip:{trigger:'item',formatter:'{b}: {c} ({d}%)'},series:[{type:'pie',radius:['35%','65%'],center:['50%','55%'],data:pieData(kcb),label:{formatter:'{b}\n{d}%'},emphasis:{itemStyle:{shadowBlur:10}}}]});
+  initChart('chart-bjs-status',{tooltip:{trigger:'item',formatter:'{b}: {c} ({d}%)'},series:[{type:'pie',radius:['35%','65%'],center:['50%','55%'],data:pieData(bjs),label:{formatter:'{b}\n{d}%'},emphasis:{itemStyle:{shadowBlur:10}}}]});
+  initChart('chart-cyb-status',{tooltip:{trigger:'item',formatter:'{b}: {c} ({d}%)'},series:[{type:'pie',radius:['35%','65%'],center:['50%','55%'],data:pieData(cyb),label:{formatter:'{b}\n{d}%'},emphasis:{itemStyle:{shadowBlur:10}}}]});
+
+  // 价格分布
+  const priceRanges = ['0-3','3-5','5-10','10-20','20-50','50+'];
+  function priceDist(arr){
+    return priceRanges.map(r=>{
+      const[lo,hi]=r.includes('+')?[r.replace('+',''),9999]:r.split('-').map(Number);
+      return arr.filter(s=>{const c=safeNum(s.close);return c!==null&&c>=lo&&c<hi}).length;
+    });
+  }
+  initChart('chart-price-dist',{
+    tooltip:{trigger:'axis'},
+    legend:{data:focusBoards,top:0,textStyle:{fontSize:11}},
+    grid:{left:50,right:20,bottom:30,top:40},
+    xAxis:{type:'category',data:priceRanges,name:'元'},
+    yAxis:{type:'value',name:'公司数'},
+    series:focusBoards.map(b=>({name:b,type:'bar',data:priceDist(focus.filter(s=>s.board===b)),itemStyle:{color:boardColors[b]}}))
+  });
+
+  // 机会评分排名
+  const scoreTop = focus.sort((a,b)=>(b.opportunity_score||0)-(a.opportunity_score||0)).slice(0,15);
+  initChart('chart-score-rank',{
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},
+    grid:{left:120,right:40,bottom:20,top:10},
+    xAxis:{type:'value',max:100,name:'评分'},
+    yAxis:{type:'category',data:scoreTop.map(s=>s.name),axisLabel:{fontSize:11}},
+    series:[{type:'bar',data:scoreTop.map(s=>({value:s.opportunity_score||0,itemStyle:{color:scoreColor(s.opportunity_score||0)}})),barWidth:14,label:{show:true,position:'right',fontSize:11}}]
+  });
+
+  // 月度趋势
+  const tlData = DATA.timeline;
+  const focusMonths = new Set();
+  focusBoards.forEach(b=>{if(tlData[b])Object.keys(tlData[b]).forEach(m=>focusMonths.add(m))});
+  const fms = [...focusMonths].sort();
+  initChart('chart-focus-timeline',{
+    tooltip:{trigger:'axis'},
+    legend:{data:focusBoards,top:0,textStyle:{fontSize:11}},
+    grid:{left:50,right:20,bottom:30,top:40},
+    xAxis:{type:'category',data:fms,axisLabel:{fontSize:10,rotate:30}},
+    yAxis:{type:'value',name:'公告数'},
+    series:focusBoards.map(b=>({name:b,type:'line',smooth:true,data:fms.map(m=>(tlData[b]&&tlData[b][m])||0),itemStyle:{color:boardColors[b]},lineStyle:{width:2}}))
+  });
+
+  // 行业构成
+  const focusInd = {};
+  focus.forEach(s=>{const ind=s.industry||'未知';if(!focusInd[ind])focusInd[ind]=0;focusInd[ind]++});
+  const fIndSorted = Object.entries(focusInd).sort((a,b)=>b[1]-a[1]);
+  initChart('chart-focus-industry',{
+    tooltip:{trigger:'item',formatter:'{b}: {c} ({d}%)'},
+    series:[{type:'pie',radius:['30%','65%'],center:['50%','55%'],
+      data:fIndSorted.map(e=>({name:e[0],value:e[1]})),
+      label:{formatter:'{b}\n{c}'}}]
+  });
+}
+
+// ============================================================
+//  摘帽机会图表
+// ============================================================
+function initOpportunityCharts(){
+  const zm = stocks.filter(s=>s.status==='摘帽成功'||s.status==='摘帽申请中').sort((a,b)=>(b.opportunity_score||0)-(a.opportunity_score||0));
+
+  // 摘帽评分排名 TOP20
+  const top20 = zm.slice(0,20);
+  initChart('chart-zhaimao-rank',{
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},
+    grid:{left:100,right:50,bottom:20,top:10},
+    xAxis:{type:'value',max:100,name:'评分'},
+    yAxis:{type:'category',data:top20.map(s=>s.name+'('+s.board.slice(0,2)+')'),axisLabel:{fontSize:10}},
+    series:[{type:'bar',data:top20.map(s=>({value:s.opportunity_score||0,itemStyle:{color:scoreColor(s.opportunity_score||0)}})),barWidth:14,label:{show:true,position:'right',fontSize:11}}]
+  });
+
+  // 摘帽率按板块
+  const boards = Object.keys(BS);
+  initChart('chart-zhaimao-rate',{
+    tooltip:{trigger:'axis'},
+    grid:{left:60,right:20,bottom:30,top:30},
+    xAxis:{type:'category',data:boards,axisLabel:{fontSize:11}},
+    yAxis:{type:'value',name:'摘帽率(%)',max:100},
+    series:[{type:'bar',data:boards.map(b=>{
+      const rate = BS[b].total>0?(BS[b].zhaimao_count/BS[b].total*100):0;
+      return {value:rate.toFixed(1),itemStyle:{color:boardColors[b]}};
+    }),barWidth:30,label:{show:true,position:'top',formatter:p=>p.value+'%',fontSize:12}}]
+  });
+
+  // 渲染摘帽表格
+  renderZhaimaoTable('all');
+}
+
+function renderZhaimaoTable(boardFilter){
+  let zm = stocks.filter(s=>s.status==='摘帽成功'||s.status==='摘帽申请中').sort((a,b)=>(b.opportunity_score||0)-(a.opportunity_score||0));
+  if(boardFilter!=='all')zm=zm.filter(s=>s.board===boardFilter);
+  const tbody=document.querySelector('#tbl-zhaimao tbody');
+  tbody.innerHTML=zm.map(s=>`<tr>
+    <td>${s.code}</td><td style="font-weight:600">${s.name}</td><td>${s.board}</td>
+    <td><span class="status-badge ${statusMap[s.status]}">${s.status}</span></td>
+    <td>${fmt(s.close)}</td><td style="${pctColor(s.pct_chg)}">${pctText(s.pct_chg)}</td>
+    <td><div class="score-bar"><div class="score-fill" style="width:${s.opportunity_score||0}%;background:${scoreColor(s.opportunity_score||0)}"></div></div><span class="score-text" style="color:${scoreColor(s.opportunity_score||0)}">${s.opportunity_score||0}</span></td>
+    <td>${fmt(s.pb)}</td><td>${s.ent_type||'-'}</td><td style="font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis">${s.controller||'-'}</td><td>${s.industry||'-'}</td><td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis">${s.latest_title||''}</td>
+  </tr>`).join('');
+}
+
+function filterZhaimao(board){
+  document.querySelectorAll('#sec-opportunity .filter-btn').forEach(b=>{b.classList.toggle('active',b.textContent===board||(board==='all'&&b.textContent==='全部'))});
+  renderZhaimaoTable(board);
+}
+
+// ============================================================
+//  退市风险预警图表
+// ============================================================
+function initRiskCharts(){
+  const rk = stocks.filter(s=>s.status==='退市风险实施中'||s.status==='风险提示中').sort((a,b)=>(a.opportunity_score||0)-(b.opportunity_score||0));
+
+  // 风险评分（低分=高风险）
+  const top15 = rk.slice(0,15);
+  initChart('chart-risk-score',{
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},
+    grid:{left:110,right:40,bottom:20,top:10},
+    xAxis:{type:'value',max:100,name:'评分(低=高风险)'},
+    yAxis:{type:'category',data:top15.map(s=>s.name+'('+s.board.slice(0,2)+')'),axisLabel:{fontSize:10}},
+    series:[{type:'bar',data:top15.map(s=>({value:s.opportunity_score||0,itemStyle:{color:scoreColor(s.opportunity_score||0)}})),barWidth:14,label:{show:true,position:'right',fontSize:11}}]
+  });
+
+  // 公告频率
+  const freq = rk.sort((a,b)=>(b.announcement_count||0)-(a.announcement_count||0)).slice(0,15);
+  initChart('chart-risk-freq',{
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},
+    grid:{left:110,right:40,bottom:20,top:10},
+    xAxis:{type:'value',name:'公告数'},
+    yAxis:{type:'category',data:freq.map(s=>s.name+'('+s.board.slice(0,2)+')'),axisLabel:{fontSize:10}},
+    series:[{type:'bar',data:freq.map(s=>s.announcement_count||0),itemStyle:{color:new echarts.graphic.LinearGradient(0,0,1,0,[{offset:0,color:'#ff4757'},{offset:1,color:'#ffa502'}])},barWidth:14,label:{show:true,position:'right',fontSize:11}}]
+  });
+
+  renderRiskTable('all');
+}
+
+function renderRiskTable(statusFilter){
+  let rk = stocks.filter(s=>s.status==='退市风险实施中'||s.status==='风险提示中').sort((a,b)=>(b.announcement_count||0)-(a.announcement_count||0));
+  if(statusFilter!=='all')rk=rk.filter(s=>s.status===statusFilter);
+  const tbody=document.querySelector('#tbl-risk tbody');
+  tbody.innerHTML=rk.map(s=>`<tr>
+    <td>${s.code}</td><td style="font-weight:600;color:#ff4757">${s.name}</td><td>${s.board}</td>
+    <td><span class="status-badge ${statusMap[s.status]}">${s.status}</span></td>
+    <td>${fmt(s.close)}</td><td style="${pctColor(s.pct_chg)}">${pctText(s.pct_chg)}</td>
+    <td>${s.announcement_count||0}</td><td style="color:#ff4757;font-weight:600">${s.implement_count||0}</td><td>${s.risk_alert_count||0}</td>
+    <td>${s.industry||'-'}</td><td>${s.ent_type||'-'}</td><td>${s.hot_money||'-'}</td>
+    <td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis">${s.latest_title||''}</td>
+  </tr>`).join('');
+}
+
+function filterRisk(status){
+  document.querySelectorAll('#sec-risk .filter-btn').forEach(b=>{b.classList.toggle('active',b.textContent===status||(status==='all'&&b.textContent==='全部'))});
+  renderRiskTable(status);
+}
+
+// ============================================================
+//  分析报告
+// ============================================================
+function initReportSection(){
+  const focus = stocks.filter(s=>focusBoards.includes(s.board));
+  const kcb = focus.filter(s=>s.board==='科创板');
+  const bjs = focus.filter(s=>s.board==='北交所');
+  const cyb = focus.filter(s=>s.board==='创业板');
+
+  const kcbZm = kcb.filter(s=>s.status==='摘帽成功'||s.status==='摘帽申请中');
+  const bjsRisk = bjs.filter(s=>s.status==='退市风险实施中'||s.status==='风险提示中');
+  const cybZm = cyb.filter(s=>s.status==='摘帽成功'||s.status==='摘帽申请中');
+
+  const avgScore = focus.reduce((a,b)=>a+(b.opportunity_score||0),0)/focus.length;
+
+  document.getElementById('report-content').innerHTML=`
+    <h3>📋 科创板 / 北交所 / 创业板退市风险分析报告</h3>
+    <p><strong>一、总体概况</strong></p>
+    <p>截至2026年5月15日，全市场涉及退市风险的公司共<span class="highlight">${S.total_stocks}家</span>，相关公告<span class="highlight">${S.total_announcements}条</span>。其中科创板、北交所、创业板三大板块共<span class="highlight">${focus.length}家</span>，占比${(focus.length/S.total_stocks*100).toFixed(1)}%。三大板块平均机会评分为<span class="orange-hl">${avgScore.toFixed(0)}分</span>。</p>
+
+    <p><strong>二、科创板分析（${kcb.length}家）</strong></p>
+    <p>科创板是注册制改革的前沿阵地，退市规则执行更严格。当前${kcb.length}家公司中，<span class="highlight">摘帽/申请中${kcbZm.length}家</span>，<span class="warning">风险实施/提示${kcb.filter(s=>s.status==='退市风险实施中'||s.status==='风险提示中').length}家</span>。科创板退市以财务类和重大违法类为主，企业科技属性意味着一旦核心技术竞争力丧失，退市风险陡增。值得关注的是，<span class="orange-hl">${kcb.filter(s=>s.status==='退市风险实施中').length}家公司</span>已进入退市风险实施阶段，其中${kcb.filter(s=>s.name.includes('*ST')).length}只带*ST标识。</p>
+
+    <p><strong>三、北交所分析（${bjs.length}家）</strong></p>
+    <p>北交所作为服务中小创新企业的平台，<span class="warning">${bjsRisk.length}家公司</span>处于退市风险实施或风险提示中，且<span class="warning">尚无成功摘帽案例</span>。这反映了北交所中小企业抗风险能力较弱的特征。北交所退市风险主要集中在持续经营能力不足、财务指标不达标等方面。投资者需特别注意北交所退市公司的流动性风险。</p>
+
+    <p><strong>四、创业板分析（${cyb.length}家）</strong></p>
+    <p>创业板退市风险公司中，<span class="highlight">${cybZm.length}家已摘帽或申请中</span>，摘帽率高达${(cybZm.length/cyb.length*100).toFixed(1)}%，远超市场平均水平。创业板公司多为成长型企业，一旦经营改善，摘帽速度较快。值得关注的是，创业板退市风险公司中<span class="highlight">无"退市风险实施中"状态的公司</span>，全部处于摘帽进程或风险提示阶段，说明创业板退市制度执行效率较高。</p>
+
+    <p><strong>五、机会挖掘与风险提示</strong></p>
+    <p><span class="highlight">摘帽机会</span>：创业板摘帽确定性最高，${cybZm.length}只摘帽/申请公司值得重点跟踪；科创板${kcbZm.length}只摘帽申请公司中，国企背景标的更具安全边际。</p>
+    <p><span class="warning">风险警示</span>：北交所退市风险最大，${bjsRisk.length}只高危公司中无摘帽先例；科创板${kcb.filter(s=>s.status==='退市风险实施中').length}只风险实施公司需警惕重大违法强制退市。</p>
+    <p><span class="orange-hl">策略建议</span>：(1) 创业板摘帽股可做右侧交易，关注撤销公告后的短期超额收益；(2) 科创板国企背景ST股可提前布局摘帽预期；(3) 北交所退市股应以规避为主，除非有明确的重组/国资入主信号。</p>
+
+    <div class="insight-grid">
+      <div class="insight-item"><div class="label">创业板摘帽率</div><div class="val" style="color:#2ed573">${(cybZm.length/cyb.length*100).toFixed(1)}%</div></div>
+      <div class="insight-item"><div class="label">北交所摘帽率</div><div class="val" style="color:#ff4757">0%</div></div>
+      <div class="insight-item"><div class="label">科创板风险实施</div><div class="val" style="color:#ffa502">${kcb.filter(s=>s.status==='退市风险实施中').length}家</div></div>
+      <div class="insight-item"><div class="label">三大板块平均评分</div><div class="val" style="color:#a55eea">${avgScore.toFixed(0)}</div></div>
+    </div>`;
+
+  // 雷达图 - 三大板块对比
+  function calcDim(arr){
+    const n=arr.length||1;
+    return{
+      '摘帽率':arr.filter(s=>s.status==='摘帽成功'||s.status==='摘帽申请中').length/n*100,
+      '风险密度':arr.filter(s=>s.status==='退市风险实施中'||s.status==='风险提示中').length/n*100,
+      '机会评分':arr.reduce((a,b)=>a+(b.opportunity_score||0),0)/n,
+      '公告频率':arr.reduce((a,b)=>a+(b.announcement_count||0),0)/n*10,
+      '国企占比':arr.filter(s=>s.ent_type==='中央企业'||s.ent_type==='地方国有企业').length/n*100
+    };
+  }
+  const dims=['摘帽率','风险密度','机会评分','公告频率','国企占比'];
+  const kcbD=calcDim(kcb),bjsD=calcDim(bjs),cybD=calcDim(cyb);
+  initChart('chart-report-radar',{
+    tooltip:{},
+    legend:{data:focusBoards,top:0,textStyle:{fontSize:11}},
+    radar:{indicator:dims.map(d=>({name:d,max:100})),radius:'65%'},
+    series:[{type:'radar',data:[
+      {value:dims.map(d=>kcbD[d]||0),name:'科创板',itemStyle:{color:'#ff6b81'}},
+      {value:dims.map(d=>bjsD[d]||0),name:'北交所',itemStyle:{color:'#ffa502'}},
+      {value:dims.map(d=>cybD[d]||0),name:'创业板',itemStyle:{color:'#2ed573'}}
+    ]}]
+  });
+
+  // 上市年限分布
+  const listYears = {};
+  focus.forEach(s=>{
+    const ld = s.list_date||'';
+    if(ld&&ld.length>=4){
+      const y = parseInt(ld.substring(0,4));
+      const age = 2026-y;
+      const bucket = age<5?'0-5年':age<10?'5-10年':age<15?'10-15年':age<20?'15-20年':'20年+';
+      if(!listYears[bucket])listYears[bucket]=0;
+      listYears[bucket]++;
+    }
+  });
+  const yb = ['0-5年','5-10年','10-15年','15-20年','20年+'];
+  initChart('chart-report-listage',{
+    tooltip:{trigger:'item',formatter:'{b}: {c} ({d}%)'},
+    series:[{type:'pie',radius:['35%','65%'],center:['50%','55%'],
+      data:yb.filter(b=>listYears[b]).map(b=>({name:b,value:listYears[b]})),
+      label:{formatter:'{b}\n{c}家'}}]
+  });
+}
+
+// ============================================================
+//  全量数据表
+// ============================================================
+function renderAllTable(filtered){
+  const data = filtered || stocks;
+  const tbody=document.querySelector('#tbl-all tbody');
+  tbody.innerHTML=data.map(s=>`<tr>
+    <td>${s.code}</td><td style="font-weight:600">${s.name}</td><td>${s.board}</td>
+    <td><span class="status-badge ${statusMap[s.status]}">${s.status}</span></td>
+    <td><div class="score-bar"><div class="score-fill" style="width:${s.opportunity_score||0}%;background:${scoreColor(s.opportunity_score||0)}"></div></div><span class="score-text" style="color:${scoreColor(s.opportunity_score||0)}">${s.opportunity_score||0}</span></td>
+    <td>${fmt(s.close)}</td><td style="${pctColor(s.pct_chg)}">${pctText(s.pct_chg)}</td>
+    <td>${fmt(s.pb)}</td><td>${s.pe_ttm||'-'}</td><td>${s.market_cap||'-'}</td>
+    <td>${s.industry||'-'}</td><td style="font-size:11px;max-width:80px;overflow:hidden;text-overflow:ellipsis">${s.industry_detail||'-'}</td>
+    <td>${s.ent_type||'-'}</td><td style="font-size:11px;max-width:80px;overflow:hidden;text-overflow:ellipsis">${s.controller||'-'}</td>
+    <td style="font-size:11px;max-width:80px">${s.invest_style||'-'}</td><td style="font-size:11px;max-width:80px">${s.invest_tag||'-'}</td>
+    <td>${s.hot_money||'-'}</td><td>${s.announcement_count||0}</td>
+    <td style="color:#2ed573">${s.zhaimao_count||0}</td><td style="color:#ff4757">${s.implement_count||0}</td><td>${s.risk_alert_count||0}</td>
+    <td>${s.latest_date||'-'}</td><td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis">${s.latest_title||''}</td>
+  </tr>`).join('');
+}
+
+function searchTable(){
+  const q=document.getElementById('search-input').value.toLowerCase();
+  const bf=document.getElementById('board-filter').value;
+  const sf=document.getElementById('status-filter').value;
+  let filtered=stocks;
+  if(q)filtered=filtered.filter(s=>s.code.includes(q)||s.name.toLowerCase().includes(q));
+  if(bf!=='all')filtered=filtered.filter(s=>s.board===bf);
+  if(sf!=='all')filtered=filtered.filter(s=>s.status===sf);
+  renderAllTable(filtered);
+}
+
+// ============================================================
+//  初始化
+// ============================================================
+renderKPIs();
+initOverviewCharts();
+renderAllTable();
+</script>
+</body>
+</html>
